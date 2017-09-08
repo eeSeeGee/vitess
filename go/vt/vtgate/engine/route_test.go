@@ -20,6 +20,8 @@ import (
 	"errors"
 	"testing"
 
+	"github.com/stretchr/testify/assert"
+
 	"vitess.io/vitess/go/mysql"
 	"vitess.io/vitess/go/sqltypes"
 	querypb "vitess.io/vitess/go/vt/proto/query"
@@ -653,8 +655,19 @@ func TestRouteSort(t *testing.T) {
 			),
 		},
 	}
-	_, err = sel.Execute(vc, map[string]*querypb.BindVariable{}, false)
-	expectError(t, "sel.Execute", err, "types are not comparable: VARCHAR vs VARCHAR")
+	result, err = sel.Execute(vc, map[string]*querypb.BindVariable{}, false)
+	assert.NoError(t, err)
+	wantResult = sqltypes.MakeTestResult(
+		sqltypes.MakeTestFields(
+			"id",
+			"varchar",
+		),
+		"3",
+		"2",
+		"1",
+	)
+
+	expectResult(t, "sel.Execute", result, wantResult)
 }
 
 func TestRouteSortTruncate(t *testing.T) {

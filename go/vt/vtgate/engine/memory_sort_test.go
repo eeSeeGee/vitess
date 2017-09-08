@@ -21,6 +21,8 @@ import (
 	"reflect"
 	"testing"
 
+	"github.com/stretchr/testify/assert"
+
 	"vitess.io/vitess/go/sqltypes"
 	querypb "vitess.io/vitess/go/vt/proto/query"
 	"vitess.io/vitess/go/vt/sqlparser"
@@ -398,17 +400,18 @@ func TestMemorySortExecuteNoVarChar(t *testing.T) {
 		Input: fp,
 	}
 
-	_, err := ms.Execute(nil, nil, false)
-	want := "types are not comparable: VARCHAR vs VARCHAR"
-	if err == nil || err.Error() != want {
-		t.Errorf("Execute err: %v, want %v", err, want)
-	}
+	result, err := ms.Execute(nil, nil, false)
+	assert.NoError(t, err)
 
-	fp.rewind()
-	err = ms.StreamExecute(noopVCursor{}, nil, false, func(qr *sqltypes.Result) error {
-		return nil
-	})
-	if err == nil || err.Error() != want {
-		t.Errorf("StreamExecute err: %v, want %v", err, want)
+	wantResult := sqltypes.MakeTestResult(
+		fields,
+		"a|1",
+		"a|1",
+		"b|2",
+		"c|3",
+		"c|4",
+	)
+	if !reflect.DeepEqual(result, wantResult) {
+		t.Errorf("oa.Execute:\n%v, want\n%v", result, wantResult)
 	}
 }
