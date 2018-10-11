@@ -98,8 +98,22 @@ type v3Resolver struct {
 	vindex              vindexes.Vindex
 }
 
+type unshardedResolver struct {
+}
+
+var (
+	nullksid = []byte{0}
+)
+
+func (unshardedResolver) keyspaceID(row []sqltypes.Value) ([]byte, error) {
+	return nullksid, nil
+}
+
 // newV3ResolverFromTableDefinition returns a keyspaceIDResolver for a v3 table.
 func newV3ResolverFromTableDefinition(keyspaceSchema *vindexes.KeyspaceSchema, td *tabletmanagerdatapb.TableDefinition) (keyspaceIDResolver, error) {
+	if !keyspaceSchema.Keyspace.Sharded {
+		return unshardedResolver{}, nil
+	}
 	if td.Type != tmutils.TableBaseTable {
 		return nil, fmt.Errorf("a keyspaceID resolver can only be created for a base table, got %v", td.Type)
 	}
