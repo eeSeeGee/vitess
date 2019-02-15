@@ -365,9 +365,31 @@ func (blw *BackfillLookupWorker) initShards(ctx context.Context) error {
 	if err != nil {
 		return fmt.Errorf("cannot FindAllShardsInKeyspace in %v: %v", blw.sourceKeyspace, err)
 	}
+
+	srvKeyspace, err := blw.wr.TopoServer().GetSrvKeyspace(ctx, blw.cell, blw.sourceKeyspace)
+	if err != nil {
+		return fmt.Errorf("cannot GetSrvKeyspace for %v: %v", blw.sourceKeyspace, err)
+	}
+
 	blw.sourceShards = make([]*topo.ShardInfo, 0, len(sourceShards))
 	for _, shard := range sourceShards {
-		blw.sourceShards = append(blw.sourceShards, shard)
+		for _, partition := range srvKeyspace.Partitions {
+			if partition.GetServedType() != blw.tabletType {
+				continue
+			}
+			for _, group := range partition.GetShardReferences() {
+				if group.KeyRange.String() == shard.KeyRange.String() {
+					blw.wr.Logger().Infof("Using shard %v as source for %v/%v", shard.ShardName(), blw.cell, blw.sourceKeyspace)
+					blw.sourceShards = append(blw.sourceShards, shard)
+					break
+				}
+			}
+			break
+		}
+	}
+
+	if len(blw.sourceShards) == 0 {
+		return fmt.Errorf("no valid shards found for %v", blw.destinationKeyspace)
 	}
 
 	shortCtx, cancel = context.WithTimeout(ctx, *remoteActionsTimeout)
