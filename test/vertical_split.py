@@ -484,7 +484,7 @@ msg varchar(64)
     utils.run_vtworker(['-cell', 'test_nj',
                         '--use_v3_resharding_mode=false',
                         'VerticalSplitDiff',
-                        '--min_healthy_rdonly_tablets', '1',
+                        '--min_healthy_tablets', '1',
                         'destination_keyspace/0'], auto_log=True)
 
     utils.pause('Good time to test vtworker for diffs')
