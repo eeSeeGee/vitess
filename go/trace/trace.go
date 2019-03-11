@@ -20,7 +20,17 @@ limitations under the License.
 package trace
 
 import (
+	"flag"
+	"io"
+	"strings"
+
+	"github.com/opentracing-contrib/go-grpc"
+	"github.com/opentracing/opentracing-go"
 	"golang.org/x/net/context"
+	"google.golang.org/grpc"
+	"vitess.io/vitess/go/vt/log"
+	"vitess.io/vitess/go/vt/proto/vtrpc"
+	"vitess.io/vitess/go/vt/vterrors"
 )
 
 // Span represents a unit of work within a trace. After creating a Span with
@@ -28,16 +38,6 @@ import (
 // represented by this Span. Call Finish() when that work is done to record the
 // Span. A Span may be reused by calling Start again.
 type Span interface {
-	// StartLocal marks the beginning of a span representing time spent doing
-	// work locally.
-	StartLocal(label string)
-	// StartClient marks the beginning of a span representing time spent acting as
-	// a client and waiting for a response.
-	StartClient(label string)
-	// StartServer marks the beginning of a span representing time spent doing
-	// work in service of a remote client request.
-	StartServer(label string)
-	// Finish marks the span as complete.
 	Finish()
 	// Annotate records a key/value pair associated with a Span. It should be
 	// called between Start and Finish.
@@ -46,8 +46,20 @@ type Span interface {
 
 // NewSpan creates a new Span with the currently installed tracing plugin.
 // If no tracing plugin is installed, it returns a fake Span that does nothing.
-func NewSpan(parent Span) Span {
-	return spanFactory.New(parent)
+func NewSpan(inCtx context.Context, label string) (Span, context.Context) {
+	parent, _ := spanFactory.FromContext(inCtx)
+	span := spanFactory.New(parent, label)
+	outCtx := spanFactory.NewContext(inCtx, span)
+
+	return span, outCtx
+}
+
+// NewClientSpan returns a span and a context to register calls to dependent services. It annotates
+// the span with "peer.service" per https://github.com/opentracing/specification/blob/master/semantic_conventions.md
+func NewClientSpan(inCtx context.Context, serviceName, spanLabel string) (Span, context.Context) {
+	span, ctx := NewSpan(inCtx, spanLabel)
+	span.Annotate("peer.service", serviceName)
+	return span, ctx
 }
 
 // FromContext returns the Span from a Context if present. The bool return
@@ -61,15 +73,6 @@ func NewContext(parent context.Context, span Span) context.Context {
 	return spanFactory.NewContext(parent, span)
 }
 
-// NewSpanFromContext returns a new Span whose parent is the Span from the given
-// Context if present, or a new Span with no parent if not.
-func NewSpanFromContext(ctx context.Context) Span {
-	if parent, ok := FromContext(ctx); ok {
-		return NewSpan(parent)
-	}
-	return NewSpan(nil)
-}
-
 // CopySpan creates a new context from parentCtx, with only the trace span
 // copied over from spanCtx, if it has any. If not, parentCtx is returned.
 func CopySpan(parentCtx, spanCtx context.Context) context.Context {
@@ -79,14 +82,45 @@ func CopySpan(parentCtx, spanCtx context.Context) context.Context {
 	return parentCtx
 }
 
+func GetGrpcClientOptions() []grpc.DialOption {
+	tracer := opentracing.GlobalTracer()
+	_, isNoopTracer := tracer.(opentracing.NoopTracer)
+	if isNoopTracer {
+		return []grpc.DialOption{}
+
+	} else {
+		return []grpc.DialOption{
+			grpc.WithUnaryInterceptor(otgrpc.OpenTracingClientInterceptor(tracer)),
+			grpc.WithStreamInterceptor(otgrpc.OpenTracingStreamClientInterceptor(tracer)),
+		}
+	}
+}
+
+func AddGrpcServerOptions(addInterceptors func(s grpc.StreamServerInterceptor, u grpc.UnaryServerInterceptor)) {
+	tracer := opentracing.GlobalTracer()
+	_, isNoopTracer := tracer.(*opentracing.NoopTracer)
+	if isNoopTracer {
+		return
+	}
+
+	addInterceptors(otgrpc.OpenTracingStreamServerInterceptor(tracer), otgrpc.OpenTracingServerInterceptor(tracer))
+}
+
 // SpanFactory is an interface for creating spans or extracting them from Contexts.
 type SpanFactory interface {
-	New(parent Span) Span
+	// New creates a new span from an existing one, if provided. The parent can also be nil
+	New(parent Span, label string) Span
+
+	// Extracts a span from a context, making it possible to annotate the span with additional information.
 	FromContext(ctx context.Context) (Span, bool)
+
+	// Creates a new context containing the provided span
 	NewContext(parent context.Context, span Span) context.Context
 }
 
-var spanFactory SpanFactory = fakeSpanFactory{}
+type TracerFactory func(serviceName string) (opentracing.Tracer, io.Closer, error)
+
+var tracingBackendFactories = make(map[string]TracerFactory)
 
 // RegisterSpanFactory should be called by a plugin during init() to install a
 // factory that creates Spans for that plugin's tracing framework. Each call to
@@ -97,17 +131,43 @@ func RegisterSpanFactory(sf SpanFactory) {
 	spanFactory = sf
 }
 
-type fakeSpanFactory struct{}
+var spanFactory SpanFactory = fakeSpanFactory{}
 
-func (fakeSpanFactory) New(parent Span) Span                                         { return fakeSpan{} }
-func (fakeSpanFactory) FromContext(ctx context.Context) (Span, bool)                 { return nil, false }
-func (fakeSpanFactory) NewContext(parent context.Context, span Span) context.Context { return parent }
+var (
+	tracingServer = flag.String("tracer", "noop", "tracing service to use.")
+)
 
-// fakeSpan implements Span with no-op methods.
-type fakeSpan struct{}
+// StartTracing enables tracing for a named service
+func StartTracing(serviceName string) io.Closer {
+	factory, ok := tracingBackendFactories[*tracingServer]
+	if !ok {
+		options := make([]string, len(tracingBackendFactories))
+		for k := range tracingBackendFactories {
+			options = append(options, k)
+		}
 
-func (fakeSpan) StartLocal(string)            {}
-func (fakeSpan) StartClient(string)           {}
-func (fakeSpan) StartServer(string)           {}
-func (fakeSpan) Finish()                      {}
-func (fakeSpan) Annotate(string, interface{}) {}
+		altStr := strings.Join(options, ", ")
+		log.Error(vterrors.Errorf(vtrpc.Code_INVALID_ARGUMENT, "no such tracing service found. alternatives are: %v", altStr))
+		return &nilCloser{}
+	}
+
+	tracer, closer, err := factory(serviceName)
+	if err != nil {
+		log.Error(vterrors.Wrapf(err, "failed to create a %s tracer", *tracingServer))
+		return &nilCloser{}
+	}
+
+	_, isNoopTracer := tracer.(opentracing.NoopTracer)
+	if isNoopTracer {
+		// We don't have a real tracer to work with. Let's leave early
+		return &nilCloser{}
+	}
+
+	// Register it for all openTracing enabled plugins, mainly the grpc connections
+	opentracing.SetGlobalTracer(tracer)
+
+	// Register it for the internal Vitess tracing system
+	RegisterSpanFactory(OpenTracingFactory{Tracer: tracer})
+
+	return closer
+}

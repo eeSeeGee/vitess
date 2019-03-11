@@ -17,8 +17,10 @@ limitations under the License.
 package trace
 
 import (
+	"io"
 	"testing"
 
+	"github.com/opentracing/opentracing-go"
 	"golang.org/x/net/context"
 )
 
@@ -27,12 +29,55 @@ func TestFakeSpan(t *testing.T) {
 	RegisterSpanFactory(fakeSpanFactory{})
 
 	// It should be safe to call all the usual methods as if a plugin were installed.
-	span := NewSpanFromContext(ctx)
-	span.StartLocal("label")
-	span.StartClient("label")
-	span.StartServer("label")
-	span.Annotate("key", "value")
-	span.Finish()
-	NewContext(ctx, span)
-	CopySpan(ctx, ctx)
+	span1, ctx := NewSpan(ctx, "label")
+	span1.Finish()
+
+	span2, ctx := NewSpan(ctx, "label")
+	span2.Annotate("key", 42)
+	span2.Finish()
+
+	span3, ctx := NewSpan(ctx, "label")
+	span3.Annotate("key", 42)
+	span3.Finish()
+}
+
+func TestRegisterService(t *testing.T) {
+	fakeName := "test"
+	tracingBackendFactories[fakeName] = func(s string) (opentracing.Tracer, io.Closer, error) {
+		tracer := fakeTracer{name: s}
+		return tracer, tracer, nil
+	}
+
+	tracingServer = &fakeName
+
+	serviceName := "vtservice"
+	closer := StartTracing(serviceName)
+	tracer, ok := closer.(fakeTracer)
+	if !ok {
+		t.Fatalf("did not get the expected tracer")
+	}
+
+	if tracer.name != serviceName {
+		t.Fatalf("expected the name to be `%v` but it was `%v`", serviceName, tracer.name)
+	}
+}
+
+type fakeTracer struct {
+	name string
+}
+
+func (fakeTracer) Close() error {
+	panic("implement me")
+}
+
+func (fakeTracer) StartSpan(operationName string, opts ...opentracing.StartSpanOption) opentracing.Span {
+	panic("implement me")
+}
+
+func (fakeTracer) Inject(sm opentracing.SpanContext, format interface{}, carrier interface{}) error {
+	panic("implement me")
+}
+
+func (fakeTracer) Extract(format interface{}, carrier interface{}) (opentracing.SpanContext, error) {
+	panic("implement me")
 }

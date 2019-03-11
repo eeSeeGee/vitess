@@ -25,6 +25,7 @@ import (
 
 	"github.com/grpc-ecosystem/go-grpc-middleware"
 	"github.com/grpc-ecosystem/go-grpc-prometheus"
+	"vitess.io/vitess/go/trace"
 
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials"
@@ -191,6 +192,8 @@ func interceptors() []grpc.ServerOption {
 	if *grpccommon.EnableGRPCPrometheus {
 		interceptors.Add(grpc_prometheus.StreamServerInterceptor, grpc_prometheus.UnaryServerInterceptor)
 	}
+
+	trace.AddGrpcServerOptions(interceptors.Add)
 
 	if interceptors.NonEmpty() {
 		return []grpc.ServerOption{
