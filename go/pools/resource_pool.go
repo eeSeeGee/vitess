@@ -126,10 +126,6 @@ func (rp *ResourcePool) closeIdleResources() {
 // A timeout of 0 is an indefinite wait.
 func (rp *ResourcePool) Get(ctx context.Context) (resource Resource, err error) {
 	span, ctx := trace.NewSpan(ctx, "ResourcePool.Get", trace.Local)
-	span.Annotate("capacity", rp.capacity.Get())
-	span.Annotate("in_use", rp.inUse.Get())
-	span.Annotate("available", rp.available.Get())
-	span.Annotate("active", rp.active.Get())
 	defer span.Finish()
 	return rp.get(ctx, true)
 }
