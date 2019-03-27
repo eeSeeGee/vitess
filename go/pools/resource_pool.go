@@ -125,7 +125,7 @@ func (rp *ResourcePool) closeIdleResources() {
 // it will wait till the next resource becomes available or a timeout.
 // A timeout of 0 is an indefinite wait.
 func (rp *ResourcePool) Get(ctx context.Context) (resource Resource, err error) {
-	span, ctx := trace.NewSpan(ctx, "ResourcePool.Get", trace.Local)
+	span, ctx := trace.NewSpan(ctx, "ResourcePool.Get")
 	defer span.Finish()
 	return rp.get(ctx, true)
 }
@@ -161,7 +161,7 @@ func (rp *ResourcePool) get(ctx context.Context, wait bool) (resource Resource, 
 
 	// Unwrap
 	if wrapper.resource == nil {
-		span, _ := trace.NewSpan(ctx, "ResourcePool.factory", trace.Local)
+		span, _  := trace.NewSpan(ctx, "ResourcePool.factory")
 		wrapper.resource, err = rp.factory()
 		span.Finish()
 		if err != nil {
