@@ -1,11 +1,20 @@
 package trace
 
 import (
+	"flag"
 	"io"
 
+	"vitess.io/vitess/go/vt/log"
+
 	"github.com/opentracing/opentracing-go"
+	"github.com/uber/jaeger-client-go"
 	"github.com/uber/jaeger-client-go/config"
 	"golang.org/x/net/context"
+)
+
+var (
+	agentHost    = flag.String("jaeger-agent-host", "", "host and port to send spans to. if empty, no tracing will be done")
+	samplingRate = flag.Float64("tracing-sampling-rate", 0.1, "sampling rate for the probabilistic jaeger sampler")
 )
 
 type JaegerSpan struct {
@@ -47,6 +56,17 @@ func newJagerTracerFromEnv(serviceName string) (opentracing.Tracer, io.Closer, e
 	if cfg.ServiceName == "" {
 		cfg.ServiceName = serviceName
 	}
+
+	// Allow command line args to override environment variables.
+	if *agentHost != "" {
+		cfg.Reporter.LocalAgentHostPort = *agentHost
+	}
+	log.Infof("Tracing to: %v as %v", cfg.Reporter.LocalAgentHostPort, cfg.ServiceName)
+	cfg.Sampler = &config.SamplerConfig{
+		Type:  jaeger.SamplerTypeConst,
+		Param: *samplingRate,
+	}
+	log.Infof("Tracing sampling rate: %v", *samplingRate)
 
 	tracer, closer, err := cfg.NewTracer()
 
