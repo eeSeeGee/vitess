@@ -23,8 +23,8 @@ import (
 	"net"
 	"time"
 
-	"github.com/grpc-ecosystem/go-grpc-middleware"
-	"github.com/grpc-ecosystem/go-grpc-prometheus"
+	grpc_middleware "github.com/grpc-ecosystem/go-grpc-middleware"
+	grpc_prometheus "github.com/grpc-ecosystem/go-grpc-prometheus"
 	"vitess.io/vitess/go/trace"
 
 	"google.golang.org/grpc"
@@ -93,7 +93,8 @@ var (
 	// there are no active streams, server will send GOAWAY and close the connection.
 	GRPCKeepAliveEnforcementPolicyPermitWithoutStream = flag.Bool("grpc_server_keepalive_enforcement_policy_permit_without_stream", false, "grpc server permit client keepalive pings even when there are no active streams (RPCs)")
 
-	authPlugin Authenticator
+	GRPCRateLimitServer = flag.String("grpc_server_rate_limit", "off", "rate limit grpc server communication. possible values are 'off', 'log' and 'on'")
+	authPlugin          Authenticator
 )
 
 // isGRPCEnabled returns true if gRPC server is set
@@ -195,13 +196,9 @@ func interceptors() []grpc.ServerOption {
 
 	trace.AddGrpcServerOptions(interceptors.Add)
 
-	if interceptors.NonEmpty() {
-		return []grpc.ServerOption{
-			grpc.StreamInterceptor(interceptors.StreamServerInterceptor),
-			grpc.UnaryInterceptor(interceptors.UnaryStreamInterceptor)}
-	} else {
-		return []grpc.ServerOption{}
-	}
+	addRateLimiting(interceptors)
+
+	return interceptors.Build()
 }
 
 func serveGRPC() {
@@ -292,19 +289,39 @@ func WrapServerStream(stream grpc.ServerStream) *WrappedServerStream {
 // InterceptorBuilder chains together multiple ServerInterceptors
 type InterceptorBuilder struct {
 	StreamServerInterceptor grpc.StreamServerInterceptor
-	UnaryStreamInterceptor  grpc.UnaryServerInterceptor
+	UnaryServerInterceptor  grpc.UnaryServerInterceptor
 }
 
+// Add adds both a StreamServerInterceptor and a UnaryServerInterceptor to the builder, chaining interceptors if necessary.
 func (collector *InterceptorBuilder) Add(s grpc.StreamServerInterceptor, u grpc.UnaryServerInterceptor) {
 	if collector.StreamServerInterceptor == nil {
 		collector.StreamServerInterceptor = s
-		collector.UnaryStreamInterceptor = u
 	} else {
 		collector.StreamServerInterceptor = grpc_middleware.ChainStreamServer(collector.StreamServerInterceptor, s)
-		collector.UnaryStreamInterceptor = grpc_middleware.ChainUnaryServer(collector.UnaryStreamInterceptor, u)
+	}
+
+	collector.AddUnary(u)
+}
+
+// AddUnary adds a UnaryServerInterceptor to the builder, chaining interceptors if necessary.
+func (collector *InterceptorBuilder) AddUnary(u grpc.UnaryServerInterceptor) {
+	if collector.UnaryServerInterceptor == nil {
+		collector.UnaryServerInterceptor = u
+	} else {
+		collector.UnaryServerInterceptor = grpc_middleware.ChainUnaryServer(collector.UnaryServerInterceptor, u)
 	}
 }
 
-func (collector *InterceptorBuilder) NonEmpty() bool {
-	return collector.StreamServerInterceptor != nil
+// Build returns a list of configured Interceptors, which may be empty.
+func (collector *InterceptorBuilder) Build() []grpc.ServerOption {
+	if collector.UnaryServerInterceptor != nil && collector.StreamServerInterceptor != nil {
+		return []grpc.ServerOption{
+			grpc.StreamInterceptor(collector.StreamServerInterceptor),
+			grpc.UnaryInterceptor(collector.UnaryServerInterceptor)}
+	} else if collector.UnaryServerInterceptor != nil {
+		return []grpc.ServerOption{grpc.UnaryInterceptor(collector.UnaryServerInterceptor)}
+	} else if collector.StreamServerInterceptor != nil {
+		return []grpc.ServerOption{grpc.StreamInterceptor(collector.StreamServerInterceptor)}
+	}
+	return []grpc.ServerOption{}
 }

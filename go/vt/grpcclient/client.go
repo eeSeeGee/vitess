@@ -21,12 +21,11 @@ package grpcclient
 import (
 	"flag"
 
+	"github.com/grpc-ecosystem/go-grpc-prometheus"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials"
 	"google.golang.org/grpc/keepalive"
 	"vitess.io/vitess/go/trace"
-
-	"github.com/grpc-ecosystem/go-grpc-prometheus"
 
 	"vitess.io/vitess/go/vt/grpccommon"
 	"vitess.io/vitess/go/vt/vttls"
@@ -39,6 +38,7 @@ var (
 	keepaliveTimeout      = flag.Duration("grpc_keepalive_timeout", 0, "After having pinged for keepalive check, the client waits for a duration of Timeout and if no activity is seen even after that the connection is closed.")
 	initialConnWindowSize = flag.Int("grpc_initial_conn_window_size", 0, "grpc initial connection window size")
 	initialWindowSize     = flag.Int("grpc_initial_window_size", 0, "grpc initial window size")
+	rateLimitGrpcClient   = flag.String("grpc_client_rate_limit", "off", "rate limit grpc client communication. possible values are 'on', 'off' and 'log'")
 )
 
 // FailFast is a self-documenting type for the grpc.FailFast.
@@ -100,6 +100,8 @@ func Dial(target string, failFast FailFast, opts ...grpc.DialOption) (*grpc.Clie
 	}
 
 	newopts = append(newopts, trace.GetGrpcClientOptions()...)
+
+	newopts = append(newopts, rateLimitingOptions()...)
 
 	return grpc.Dial(target, newopts...)
 }
