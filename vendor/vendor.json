@@ -787,6 +787,60 @@
 			"revisionTime": "2019-01-09T06:16:28Z"
 		},
 		{
+			"checksumSHA1": "Q8QIBsevmd4JUK4CPDi9SUKHY/g=",
+			"path": "github.com/platinummonkey/go-concurrency-limits",
+			"revision": "3031c7115f813ff432d8ccc54dd30c7848435bb4",
+			"revisionTime": "2019-05-28T18:41:07Z"
+		},
+		{
+			"checksumSHA1": "Aw5yTR5K3CieMf8v2YVJbmesraM=",
+			"path": "github.com/platinummonkey/go-concurrency-limits/core",
+			"revision": "3031c7115f813ff432d8ccc54dd30c7848435bb4",
+			"revisionTime": "2019-05-28T18:41:07Z"
+		},
+		{
+			"checksumSHA1": "MTccgNhSn+nzaR7IqkIu5AVBQoo=",
+			"path": "github.com/platinummonkey/go-concurrency-limits/grpc",
+			"revision": "3031c7115f813ff432d8ccc54dd30c7848435bb4",
+			"revisionTime": "2019-05-28T18:41:07Z"
+		},
+		{
+			"checksumSHA1": "yEoD2djy/PmDzItRL/Oq5z8NG08=",
+			"path": "github.com/platinummonkey/go-concurrency-limits/limit",
+			"revision": "3031c7115f813ff432d8ccc54dd30c7848435bb4",
+			"revisionTime": "2019-05-28T18:41:07Z"
+		},
+		{
+			"checksumSHA1": "1O/ykx6ouq9ZkTaEYEOz36xJZKU=",
+			"path": "github.com/platinummonkey/go-concurrency-limits/limit/functions",
+			"revision": "3031c7115f813ff432d8ccc54dd30c7848435bb4",
+			"revisionTime": "2019-05-28T18:41:07Z"
+		},
+		{
+			"checksumSHA1": "PwSiLoicFhcGp3JEsfpIBHTF5B0=",
+			"path": "github.com/platinummonkey/go-concurrency-limits/limiter",
+			"revision": "3031c7115f813ff432d8ccc54dd30c7848435bb4",
+			"revisionTime": "2019-05-28T18:41:07Z"
+		},
+		{
+			"checksumSHA1": "qoueQXA5cxReoyL+lcADKt6zWao=",
+			"path": "github.com/platinummonkey/go-concurrency-limits/measurements",
+			"revision": "3031c7115f813ff432d8ccc54dd30c7848435bb4",
+			"revisionTime": "2019-05-28T18:41:07Z"
+		},
+		{
+			"checksumSHA1": "aE+9TIZ0aeGD8JAM5NbkTTCTgCo=",
+			"path": "github.com/platinummonkey/go-concurrency-limits/strategy",
+			"revision": "3031c7115f813ff432d8ccc54dd30c7848435bb4",
+			"revisionTime": "2019-05-28T18:41:07Z"
+		},
+		{
+			"checksumSHA1": "r87JxnrnReLjNZrwLlmrQgHZLQ8=",
+			"path": "github.com/platinummonkey/go-concurrency-limits/strategy/matchers",
+			"revision": "3031c7115f813ff432d8ccc54dd30c7848435bb4",
+			"revisionTime": "2019-05-28T18:41:07Z"
+		},
+		{
 			"checksumSHA1": "LuFv4/jlrmFNnDb/5SCSEPAM9vU=",
 			"path": "github.com/pmezard/go-difflib/difflib",
 			"revision": "792786c7400a136282c1664665ae0a8db921c6c2",
