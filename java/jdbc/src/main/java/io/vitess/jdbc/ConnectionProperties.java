@@ -159,9 +159,8 @@ public class ConnectionProperties {
       Query.ExecuteOptions.Workload.UNSPECIFIED);
   private BooleanConnectionProperty useAffectedRows = new BooleanConnectionProperty(
       "useAffectedRows",
-      "Don't set the CLIENT_FOUND_ROWS flag when connecting to the server. The vitess default "
-          + "(useAffectedRows=true) is the opposite of mysql-connector-j.",
-      true);
+      "Returns how many rows where affected and not how many rows where found",
+      false);
 
   private BooleanConnectionProperty grpcRetriesEnabled = new BooleanConnectionProperty(
       "grpcRetriesEnabled",
