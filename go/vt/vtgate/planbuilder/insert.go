@@ -119,7 +119,7 @@ func buildInsertShardedPlan(ins *sqlparser.Insert, table *vindexes.Table) (*engi
 
 	eins.QueryTimeout = queryTimeout(directives)
 
-	var rows sqlparser.Values
+	var rows, origRows sqlparser.Values
 	switch insertValues := ins.Rows.(type) {
 	case *sqlparser.Select, *sqlparser.Union:
 		return nil, errors.New("unsupported: insert into select")
@@ -128,6 +128,7 @@ func buildInsertShardedPlan(ins *sqlparser.Insert, table *vindexes.Table) (*engi
 		if hasSubquery(rows) {
 			return nil, errors.New("unsupported: subquery in insert values")
 		}
+		copy(insertValues, origRows)
 	default:
 		panic(fmt.Sprintf("BUG: unexpected construct in insert: %T", insertValues))
 	}
@@ -152,7 +153,7 @@ func buildInsertShardedPlan(ins *sqlparser.Insert, table *vindexes.Table) (*engi
 			colNum := findOrAddColumn(ins, col)
 			// swap bind variables
 			baseName := ":_" + col.CompliantName()
-			for rowNum, row := range rows {
+			for rowNum, row := range origRows {
 				innerpv, err := sqlparser.NewPlanValue(row[colNum])
 				if err != nil {
 					return nil, vterrors.Wrapf(err, "could not compute value for vindex or auto-inc column")

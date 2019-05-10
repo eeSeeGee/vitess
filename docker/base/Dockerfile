@@ -11,6 +11,8 @@ FROM vitess/bootstrap:mysql57
 # Allows some docker builds to disable CGO
 ARG CGO_ENABLED=0
 
+RUN go get -u github.com/go-delve/delve/cmd/dlv
+
 # Re-copy sources from working tree
 USER root
 COPY . /vt/src/vitess.io/vitess

@@ -450,6 +450,15 @@ func TestInsertShardedOwned(t *testing.T) {
 						},
 						Owner: "t1",
 					},
+					"alsoonecol": {
+						Type: "lookup",
+						Params: map[string]string{
+							"table": "lkp1",
+							"from":  "from",
+							"to":    "toc",
+						},
+						Owner: "t1",
+					},
 				},
 				Tables: map[string]*vschemapb.Table{
 					"t1": {
@@ -461,6 +470,9 @@ func TestInsertShardedOwned(t *testing.T) {
 							Columns: []string{"c1", "c2"},
 						}, {
 							Name:    "onecol",
+							Columns: []string{"c3"},
+						}, {
+							Name:    "alsoonecol",
 							Columns: []string{"c3"},
 						}},
 					},

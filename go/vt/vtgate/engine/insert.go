@@ -26,6 +26,7 @@ import (
 	"vitess.io/vitess/go/jsonutil"
 	"vitess.io/vitess/go/sqltypes"
 	"vitess.io/vitess/go/vt/key"
+	"vitess.io/vitess/go/vt/log"
 	"vitess.io/vitess/go/vt/sqlannotation"
 	"vitess.io/vitess/go/vt/sqlparser"
 	"vitess.io/vitess/go/vt/srvtopo"
@@ -337,6 +338,7 @@ func (ins *Insert) processGenerate(vcursor VCursor, bindVars map[string]*querypb
 // For unowned vindexes with values, it validates.
 // If it's an IGNORE or ON DUPLICATE key insert, it drops unroutable rows.
 func (ins *Insert) getInsertShardedRoute(vcursor VCursor, bindVars map[string]*querypb.BindVariable) ([]*srvtopo.ResolvedShard, []*querypb.BoundQuery, error) {
+	log.Infof("Hello!")
 	// vindexRowsValues builds the values of all vindex columns.
 	// the 3-d structure indexes are colVindex, row, col. Note that
 	// ins.Values indexes are colVindex, col, row. So, the conversion
@@ -352,6 +354,7 @@ func (ins *Insert) getInsertShardedRoute(vcursor VCursor, bindVars map[string]*q
 		for colIdx, colValues := range vColValues.Values {
 			rowsResolvedValues, err := colValues.ResolveList(bindVars)
 			if err != nil {
+				log.Errorf("%v", vterrors.Wrap(err, "getInsertShardedRoute"))
 				return nil, nil, vterrors.Wrap(err, "getInsertShardedRoute")
 			}
 			// This is the first iteration: allocate for transpose.
@@ -380,6 +383,7 @@ func (ins *Insert) getInsertShardedRoute(vcursor VCursor, bindVars map[string]*q
 	// id is returned as nil, which is used later to drop such rows.
 	keyspaceIDs, err := ins.processPrimary(vcursor, vindexRowsValues[0], ins.Table.ColumnVindexes[0], bindVars)
 	if err != nil {
+		log.Errorf("%v", vterrors.Wrap(err, "getInsertShardedRoute"))
 		return nil, nil, vterrors.Wrap(err, "getInsertShardedRoute")
 	}
 
@@ -401,6 +405,7 @@ func (ins *Insert) getInsertShardedRoute(vcursor VCursor, bindVars map[string]*q
 			err = ins.processUnowned(vcursor, vindexRowsValues[vIdx], colVindex, bindVars, keyspaceIDs)
 		}
 		if err != nil {
+			log.Errorf("%v", vterrors.Wrap(err, "getInsertShardedRoute"))
 			return nil, nil, vterrors.Wrap(err, "getInsertShardedRoute")
 		}
 	}
@@ -426,6 +431,7 @@ func (ins *Insert) getInsertShardedRoute(vcursor VCursor, bindVars map[string]*q
 
 	rss, indexesPerRss, err := vcursor.ResolveDestinations(ins.Keyspace.Name, indexes, destinations)
 	if err != nil {
+		log.Errorf("%v", vterrors.Wrap(err, "getInsertShardedRoute"))
 		return nil, nil, vterrors.Wrap(err, "getInsertShardedRoute")
 	}
 
