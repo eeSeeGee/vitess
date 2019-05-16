@@ -75,6 +75,7 @@ type BackfillLookupWorker struct {
 	destinationKeyspace       string
 	destinationTable          string
 	sourceTable               string
+	sourceFromColumn          string
 	fromColumn                string
 	toColumn                  string
 	primaryVindexColumn       string
@@ -573,6 +574,17 @@ func (blw *BackfillLookupWorker) loadVindex(ctx context.Context) error {
 		blw.primaryVindexColumn = defaultSourceVindex.Columns[0]
 	}
 
+	for _, v := range sourceTableDef.ColumnVindexes {
+		if v.Name == blw.vindexName {
+			blw.sourceFromColumn = v.Column
+			break
+		}
+	}
+
+	if blw.sourceFromColumn == "" {
+		return fmt.Errorf("cannot find sourceFromColumn for table %v with Vindex %v", blw.sourceTable, blw.vindexName)
+	}
+
 	blw.fromColumn = vindexDef.Params["from"]
 	blw.toColumn = vindexDef.Params["to"]
 
@@ -659,7 +671,7 @@ func (blw *BackfillLookupWorker) backfill(ctx context.Context) error {
 	sourceTableDefinition = proto.Clone(sourceTableDefinition).(*tabletmanagerdatapb.TableDefinition)
 	sourceTableDefinition.Columns = append(
 		append(sourceColumns, sourceTableDefinition.PrimaryKeyColumns...),
-		blw.fromColumn,
+		blw.sourceFromColumn,
 		blw.primaryVindexColumn)
 	fromColumnIndex := len(sourceTableDefinition.PrimaryKeyColumns)
 	defaultVindexColumnIndex := fromColumnIndex + 1
