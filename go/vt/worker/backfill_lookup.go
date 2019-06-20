@@ -429,9 +429,27 @@ func (blw *BackfillLookupWorker) initShards(ctx context.Context) error {
 	if err != nil {
 		return fmt.Errorf("cannot FindAllShardsInKeyspace in %v: %v", blw.destinationKeyspace, err)
 	}
+
+	dstKeyspace, err := blw.wr.TopoServer().GetSrvKeyspace(ctx, blw.cell, blw.destinationKeyspace)
+	if err != nil {
+		return fmt.Errorf("cannot GetSrvKeyspace for %v: %v", blw.destinationKeyspace, err)
+	}
+
 	blw.destinationShards = make([]*topo.ShardInfo, 0, len(destinationShards))
 	for _, shard := range destinationShards {
-		blw.destinationShards = append(blw.destinationShards, shard)
+		for _, partition := range dstKeyspace.Partitions {
+			if partition.GetServedType() != topodatapb.TabletType_MASTER {
+				continue
+			}
+			for _, group := range partition.GetShardReferences() {
+				if group.KeyRange.String() == shard.KeyRange.String() {
+					blw.wr.Logger().Infof("Using shard %v as destination for %v/%v", shard.ShardName(), blw.cell, blw.destinationKeyspace)
+					blw.destinationShards = append(blw.destinationShards, shard)
+					break
+				}
+			}
+			break
+		}
 	}
 
 	if blw.destinationAutoIncrement != nil {
