@@ -1,0 +1,22 @@
+- op: add
+  path: /services/vttablet${tabalias}
+  value:
+    image: vitess/base
+    ports:
+    - "15${tabalias}:$WEB_PORT"
+    - "$GRPC_PORT"
+    - "3306"
+    volumes:
+    - ".:/script"
+    environment:
+    - TOPOLOGY_FLAGS
+    - WEB_PORT
+    - GRPC_PORT
+    - CELL
+    - KEYSPACE
+    - SHARD=${shard}
+    - ROLE=master
+    - VTHOST=vttablet${tabalias}
+    command: ["sh", "-c", "/script/vttablet-up.sh ${tabalias}"]
+    depends_on:
+    - vtctld

@@ -365,6 +365,12 @@
 			"revisionTime": "2015-11-05T21:09:06Z"
 		},
 		{
+			"checksumSHA1": "5AtRkIk3kWqQXNIycH8EnZSTPGI=",
+			"path": "github.com/evanphx/json-patch",
+			"revision": "026c730a0dcc5d11f93f1cf1cc65b01247ea7b6f",
+			"revisionTime": "2019-06-10T23:46:25Z"
+		},
+		{
 			"checksumSHA1": "muGVyM8mY3/gcap6kr4Ib3F5Xn4=",
 			"path": "github.com/ghodss/yaml",
 			"revision": "04f313413ffd65ce25f2541bfd2b2ceec5c0908c",
@@ -659,6 +665,12 @@
 			"path": "github.com/klauspost/pgzip",
 			"revision": "c4ad2ed77aece7b3270909769a30a3fcea262a66",
 			"revisionTime": "2018-07-17T08:42:24Z"
+		},
+		{
+			"checksumSHA1": "J2wLzp5OY65+pBVBfhbo8H46EX8=",
+			"path": "github.com/krishicks/yaml-patch",
+			"revision": "94f42521ff99ba62ddeca5ddae47264ade0b8df6",
+			"revisionTime": "2018-03-01T01:10:33Z"
 		},
 		{
 			"checksumSHA1": "DdH3xAkzAWJ4B/LGYJyCeRsly2I=",

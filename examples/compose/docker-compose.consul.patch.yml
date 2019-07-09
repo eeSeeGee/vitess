@@ -1,0 +1,34 @@
+- op: add
+  path: /services/consul1
+  value:
+    image: consul:latest
+    hostname: "consul1"
+    ports:
+      - "8400:8400"
+      - "8500:8500"
+      - "8600:8600"
+    command: "agent -server -bootstrap-expect 3 -ui -disable-host-node-id -client 0.0.0.0"
+- op: add
+  path: /services/consul2
+  value:
+    image: consul:latest
+    hostname: "consul2"
+    expose:
+      - "8400"
+      - "8500"
+      - "8600"
+    command: "agent -server -retry-join consul1 -disable-host-node-id"
+    depends_on:
+      - consul1
+- op: add
+  path: /services/consul3
+  value:
+    image: consul:latest
+    hostname: "consul3"
+    expose:
+      - "8400"
+      - "8500"
+      - "8600"
+    command: "agent -server -retry-join consul1 -disable-host-node-id"
+    depends_on:
+      - consul1
