@@ -172,6 +172,11 @@ type ActionAgent struct {
 	// It's only set once in NewActionAgent() and never modified after that.
 	orc *orcClient
 
+	// mrjob is an optional reference to the master repair job that is run if
+	// MasterCheckFreq flag > 0
+	// MasterCheckFreq flag > 0
+	mrjob *masterRepairJob
+
 	// mutex protects all the following fields (that start with '_'),
 	// only hold the mutex to update the fields, nothing else.
 	mutex sync.Mutex
@@ -729,6 +734,9 @@ func (agent *ActionAgent) Start(ctx context.Context, mysqlHost string, mysqlPort
 	// to make sure it and our tablet record are in sync.
 	agent.startShardSync()
 
+	// Start master repair job
+	agent.mrjob = startNewMasterRepairJob(agent.TopoServer, agent)
+
 	return nil
 }
 
@@ -764,6 +772,10 @@ func (agent *ActionAgent) Stop() {
 	// Stop the shard sync loop and wait for it to exit. This needs to be done
 	// here in addition to in Close() because tests do not call Close().
 	agent.stopShardSync()
+
+	if agent.mrjob != nil {
+		agent.mrjob.stop()
+	}
 
 	if agent.UpdateStream != nil {
 		agent.UpdateStream.Disable()

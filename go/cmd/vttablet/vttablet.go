@@ -21,6 +21,7 @@ import (
 	"flag"
 
 	"golang.org/x/net/context"
+
 	"vitess.io/vitess/go/vt/dbconfigs"
 	"vitess.io/vitess/go/vt/log"
 	"vitess.io/vitess/go/vt/mysqlctl"
@@ -129,6 +130,8 @@ func main() {
 	if err != nil {
 		log.Exitf("NewActionAgent() failed: %v", err)
 	}
+
+	initDemoteHandler(agent)
 
 	servenv.OnClose(func() {
 		// Close the agent so that our topo entry gets pruned properly and any
