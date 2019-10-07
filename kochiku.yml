@@ -27,13 +27,12 @@ targets:
     - build_image
   read_from_cache:
     - docker-cache/
+- type: run-tests4
+  requires:
+    - build_image
+  read_from_cache:
+    - docker-cache/
 # these tests are currently failing. will uncomment once they are green again
-#- type: run-tests3
-#  retry_count: 3
-#  requires:
-#    - build_image
-#  read_from_cache:
-#    - docker-cache/
 #- type: run-tests4
 #  retry_count: 3
 #  requires:
@@ -46,23 +45,23 @@ targets:
     - run-tests0
     - run-tests1
     - run-tests2
+    - run-tests4
 #    - run-tests3
-#    - run-tests4
 - type: jdbc
   requires:
     - build_image
     - run-tests0
     - run-tests1
     - run-tests2
+    - run-tests4
 #    - run-tests3
-#    - run-tests4
 - type: binaries
   requires:
     - build_image
     - run-tests0
     - run-tests1
     - run-tests2
+    - run-tests4
 #    - run-tests3
-#    - run-tests4
   read_from_cache:
     - docker-cache/
