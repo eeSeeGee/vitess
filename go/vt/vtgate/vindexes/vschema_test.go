@@ -220,7 +220,6 @@ func TestUnshardedVSchema(t *testing.T) {
 	dual := &Table{
 		Name:     sqlparser.NewTableIdent("dual"),
 		Keyspace: ks,
-		Type:     TypeReference,
 	}
 	want := &VSchema{
 		RoutingRules: map[string]*RoutingRule{},
@@ -284,7 +283,6 @@ func TestVSchemaColumns(t *testing.T) {
 	dual := &Table{
 		Name:     sqlparser.NewTableIdent("dual"),
 		Keyspace: ks,
-		Type:     TypeReference,
 	}
 	want := &VSchema{
 		RoutingRules: map[string]*RoutingRule{},
@@ -351,7 +349,6 @@ func TestVSchemaColumnListAuthoritative(t *testing.T) {
 	dual := &Table{
 		Name:     sqlparser.NewTableIdent("dual"),
 		Keyspace: ks,
-		Type:     TypeReference,
 	}
 	want := &VSchema{
 		RoutingRules: map[string]*RoutingRule{},
@@ -432,7 +429,7 @@ func TestVSchemaPinned(t *testing.T) {
 	dual := &Table{
 		Name:     sqlparser.NewTableIdent("dual"),
 		Keyspace: ks,
-		Type:     TypeReference,
+		Pinned:   []byte{0},
 	}
 	want := &VSchema{
 		RoutingRules: map[string]*RoutingRule{},
@@ -536,7 +533,7 @@ func TestShardedVSchemaOwned(t *testing.T) {
 	dual := &Table{
 		Name:     sqlparser.NewTableIdent("dual"),
 		Keyspace: ks,
-		Type:     TypeReference,
+		Pinned:   []byte{0},
 	}
 	want := &VSchema{
 		RoutingRules: map[string]*RoutingRule{},
@@ -753,12 +750,11 @@ func TestVSchemaRoutingRules(t *testing.T) {
 	dual1 := &Table{
 		Name:     sqlparser.NewTableIdent("dual"),
 		Keyspace: ks1,
-		Type:     TypeReference,
+		Pinned:   []byte{0},
 	}
 	dual2 := &Table{
 		Name:     sqlparser.NewTableIdent("dual"),
 		Keyspace: ks2,
-		Type:     TypeReference,
 	}
 	want := &VSchema{
 		RoutingRules: map[string]*RoutingRule{
@@ -1206,7 +1202,7 @@ func TestShardedVSchemaMultiColumnVindex(t *testing.T) {
 	dual := &Table{
 		Name:     sqlparser.NewTableIdent("dual"),
 		Keyspace: ks,
-		Type:     TypeReference,
+		Pinned:   []byte{0},
 	}
 	want := &VSchema{
 		RoutingRules: map[string]*RoutingRule{},
@@ -1306,7 +1302,7 @@ func TestShardedVSchemaNotOwned(t *testing.T) {
 	dual := &Table{
 		Name:     sqlparser.NewTableIdent("dual"),
 		Keyspace: ks,
-		Type:     TypeReference,
+		Pinned:   []byte{0},
 	}
 	want := &VSchema{
 		RoutingRules: map[string]*RoutingRule{},
@@ -1433,12 +1429,10 @@ func TestBuildVSchemaDupSeq(t *testing.T) {
 	duala := &Table{
 		Name:     sqlparser.NewTableIdent("dual"),
 		Keyspace: ksa,
-		Type:     TypeReference,
 	}
 	dualb := &Table{
 		Name:     sqlparser.NewTableIdent("dual"),
 		Keyspace: ksb,
-		Type:     TypeReference,
 	}
 	want := &VSchema{
 		RoutingRules: map[string]*RoutingRule{},
@@ -1506,12 +1500,10 @@ func TestBuildVSchemaDupTable(t *testing.T) {
 	duala := &Table{
 		Name:     sqlparser.NewTableIdent("dual"),
 		Keyspace: ksa,
-		Type:     TypeReference,
 	}
 	dualb := &Table{
 		Name:     sqlparser.NewTableIdent("dual"),
 		Keyspace: ksb,
-		Type:     TypeReference,
 	}
 	want := &VSchema{
 		RoutingRules: map[string]*RoutingRule{},
@@ -1642,12 +1634,12 @@ func TestBuildVSchemaDupVindex(t *testing.T) {
 	duala := &Table{
 		Name:     sqlparser.NewTableIdent("dual"),
 		Keyspace: ksa,
-		Type:     TypeReference,
+		Pinned:   []byte{0},
 	}
 	dualb := &Table{
 		Name:     sqlparser.NewTableIdent("dual"),
 		Keyspace: ksb,
-		Type:     TypeReference,
+		Pinned:   []byte{0},
 	}
 	want := &VSchema{
 		RoutingRules: map[string]*RoutingRule{},
@@ -1961,12 +1953,11 @@ func TestSequence(t *testing.T) {
 	duala := &Table{
 		Name:     sqlparser.NewTableIdent("dual"),
 		Keyspace: ksu,
-		Type:     TypeReference,
 	}
 	dualb := &Table{
 		Name:     sqlparser.NewTableIdent("dual"),
 		Keyspace: kss,
-		Type:     TypeReference,
+		Pinned:   []byte{0},
 	}
 	want := &VSchema{
 		RoutingRules: map[string]*RoutingRule{},

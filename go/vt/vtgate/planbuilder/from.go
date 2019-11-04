@@ -250,7 +250,7 @@ func (pb *primitiveBuilder) buildTablePrimitive(tableExpr *sqlparser.AliasedTabl
 		default:
 			// Pinned tables have their keyspace ids already assigned.
 			// Use the Binary vindex, which is the identity function
-			// for keyspace id.
+			// for keyspace id. Currently only dual tables are pinned.
 			eroute = engine.NewSimpleRoute(engine.SelectEqualUnique, vst.Keyspace)
 			vindex, _ = vindexes.NewBinary("binary", nil)
 			eroute.Vindex, _ = vindex.(vindexes.SingleColumn)
