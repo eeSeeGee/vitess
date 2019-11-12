@@ -14,4 +14,4 @@ if [[ -n ${KOCHIKU_ENV+x} ]]; then
   docker load -i docker-cache/"${BUILD_DOCKER_TAG}".tar
 fi
 
-docker run "$BUILD_DOCKER_TAG" go run test.go -docker=false -timeout=8m -print-log -shard "$1"
+docker run "$BUILD_DOCKER_TAG" go run test.go -docker=false -timeout=8m -exclude=square-fail -print-log -shard "$1"
