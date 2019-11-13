@@ -171,7 +171,7 @@ func (agent *ActionAgent) finalizeTabletExternallyReparented(ctx context.Context
 			// Call UpdateTabletFields instead of ChangeType so that we can check the type
 			// before changing it and avoid unnecessary topo updates
 			var err error
-			oldMasterTablet, err = topotools.ChangeType(ctx, agent.TopoServer, oldMasterAlias, agent.masterDemoteTabletType, nil)
+			oldMasterTablet, err = topotools.ChangeType(ctx, agent.TopoServer, oldMasterAlias, agent.MasterDemoteTabletType, nil)
 			if err != nil {
 				errs.RecordError(err)
 				return

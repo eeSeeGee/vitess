@@ -4,6 +4,7 @@ import (
 	"flag"
 	"fmt"
 	"math"
+	"math/rand"
 	"net/http"
 	"time"
 
@@ -82,7 +83,7 @@ func (s *DemoteHandler) demoteTablet(ctx context.Context) error {
 
 	tablet := s.agent.Tablet()
 	if topoproto.TabletAliasEqual(tablet.Alias, shardInfo.MasterAlias) {
-		log.Infof("tablet %s is the master, reparenting to available %v in keyspace %s, shard %s", agent.TabletAlias, s.tabletType, tablet.Keyspace, tablet.Shard)
+		log.Infof("tablet %s is the master, reparenting to available %v in keyspace %s, shard %s", s.agent.TabletAlias, s.tabletType, tablet.Keyspace, tablet.Shard)
 
 		targetTablet, err := s.findTargetTablet(ctx)
 		if err != nil {
@@ -143,6 +144,9 @@ func (s *DemoteHandler) reparentTablet(ctx context.Context, targetTablet *topoda
 
 		return err
 	})
+	if err != nil {
+		return err
+	}
 
 	// We gotta wait until we are no longer master as TER runs asynchronously
 	err = waitUntil(ctx, func() (bool, error) {
@@ -157,7 +161,7 @@ func (s *DemoteHandler) reparentTablet(ctx context.Context, targetTablet *topoda
 			log.Errorf("error retrieving shard info %v: %v", *agent.TabletAlias, err)
 			return false, err
 		}
-		if !topoproto.TabletAliasEqual(tablet.Alias, shardInfo.MasterAlias) {
+		if topoproto.TabletAliasEqual(tablet.Alias, shardInfo.MasterAlias) {
 			log.Infof("still shard master, waiting a bit longer")
 			return false, nil
 		}
@@ -191,7 +195,7 @@ func waitUntil(ctx context.Context, predicate func() (bool, error)) error {
 
 func (s *DemoteHandler) findTargetTablet(ctx context.Context) (*topodata.Tablet, error) {
 	sourceTablet := s.agent.Tablet()
-	var targetTablet *topodata.Tablet
+	var targetTablets []*topodata.Tablet
 
 	err := retryWithBackoff(ctx, func() error {
 		ctx, cancel := context.WithTimeout(ctx, topoOpTimeout)
@@ -205,16 +209,18 @@ func (s *DemoteHandler) findTargetTablet(ctx context.Context) (*topodata.Tablet,
 
 		for _, ti := range tabletInfos {
 			if ti.Tablet.Type == s.tabletType {
-				targetTablet = ti.Tablet
+				targetTablets = append(targetTablets, ti.Tablet)
 				break
 			}
 		}
-		if targetTablet == nil {
-			return fmt.Errorf("could not find %v tablet in shard %s to become MASTER", s.tabletType, sourceTablet.Shard)
+		if len(targetTablets) == 0 {
+			return fmt.Errorf("could not find any %v tablets in shard %s to become MASTER", s.tabletType, sourceTablet.Shard)
 		}
 
 		return nil
 	})
+
+	targetTablet := targetTablets[rand.Intn(len(targetTablets))]
 
 	return targetTablet, err
 }
