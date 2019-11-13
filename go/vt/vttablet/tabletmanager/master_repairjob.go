@@ -96,7 +96,7 @@ func (job *masterRepairJob) checkMaster() {
 	alias := tablet.Alias
 	shardInfo, err := job.agent.TopoServer.GetShard(ctx, ks, shard)
 	if err != nil {
-		log.Error("could not retrieve shard info for keyspace: %s, shard: %s", ks, shard)
+		log.Errorf("could not retrieve shard info for keyspace: %s, shard: %s", ks, shard)
 		return
 	}
 
