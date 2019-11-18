@@ -14,7 +14,8 @@ import (
 )
 
 var (
-	dnsPollerFreq = flag.Duration("dns-poller-freq", 0*time.Second, "frequency to poll dns for the db host, if it changes we demoteAndShutdown ourselves")
+	dnsPollerFreq = flag.Duration("dns-poller-freq", 0*time.Second, "frequency to poll dns for the db host, if it changes we shutdown ourselves")
+	dnsPollerShutdownDelay = flag.Duration("dns-poller-shutdown-delay", 10*time.Second, "delay after detecting a DNS change before shutting down")
 )
 
 type DNSPoller struct {
@@ -74,8 +75,15 @@ func (p *DNSPoller) checkDNS() {
 	}
 
 	if !stringsEqual(p.firstAddresses, addrs) {
-		log.Warningf("DNS entry for db host %v changed from %v to %v, shutting down",
-			dbHost, p.firstAddresses, addrs)
+		delay := *dnsPollerShutdownDelay
+		log.Warningf("DNS entry for db host %v changed from %v to %v, shutting down in %v",
+			dbHost, p.firstAddresses, addrs, delay)
+		select {
+		case <-p.done:
+			log.Infof("Exiting dns poller, shutdown aborted")
+			return
+		case <-time.After(delay):
+		}
 		p.shutdown()
 	}
 }
