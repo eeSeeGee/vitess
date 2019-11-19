@@ -36,8 +36,9 @@ func (p *DNSPoller) Start() {
 		return
 	}
 
-	log.Infof("Polling for DNS changes to %v every %v", p.getDbHost(), frequency)
 	go func() {
+		p.loadFirstAddresses()
+		log.Infof("Polling for DNS changes to %v every %v", p.getDbHost(), frequency)
 		for {
 			select {
 			case <-p.done:
@@ -60,24 +61,16 @@ func (p *DNSPoller) stop() {
 }
 
 func (p *DNSPoller) checkDNS() {
-	dbHost := p.getDbHost()
-
-	addrs, err := net.LookupHost(dbHost)
+	addrs, err := p.lookupDbHost()
 	if err != nil {
-		log.Errorf("error refreshing db host dns name %v: %v", dbHost, err)
+		log.Errorf("error refreshing db host dns name %v: %v", p.getDbHost(), err)
 		return
-	}
-	sort.Strings(addrs)
-
-	if p.firstAddresses == nil {
-		// Store the first addresses we see, if that ever changes we demote and shut down (to be restarted by k8s)
-		p.firstAddresses = addrs
 	}
 
 	if !stringsEqual(p.firstAddresses, addrs) {
 		delay := *dnsPollerShutdownDelay
 		log.Warningf("DNS entry for db host %v changed from %v to %v, shutting down in %v",
-			dbHost, p.firstAddresses, addrs, delay)
+			p.getDbHost(), p.firstAddresses, addrs, delay)
 		select {
 		case <-p.done:
 			log.Infof("Exiting dns poller, shutdown aborted")
@@ -86,6 +79,27 @@ func (p *DNSPoller) checkDNS() {
 		}
 		p.shutdown()
 	}
+}
+
+func (p *DNSPoller) loadFirstAddresses() {
+	addrs, err := p.lookupDbHost()
+	if err != nil {
+		log.Errorf("error refreshing db host dns name %v: %v", p.getDbHost(), err)
+		return
+	}
+
+	// Store the first addresses we see, if that ever changes we demote and shut down (to be restarted by k8s)
+	p.firstAddresses = addrs
+}
+
+func (p *DNSPoller) lookupDbHost() ([]string, error) {
+	dbHost := p.getDbHost()
+	addrs, err := net.LookupHost(dbHost)
+	if err != nil {
+		return nil, err
+	}
+	sort.Strings(addrs)
+	return addrs, nil
 }
 
 func (p *DNSPoller) getDbHost() string {
