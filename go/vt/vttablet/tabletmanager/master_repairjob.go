@@ -143,16 +143,6 @@ func (job *masterRepairJob) checkMaster() {
 			}
 			return
 		}
-	} else {
-		// this tablet is the master but topology thinks there's another master, go back to spare
-		if !topoproto.TabletAliasEqual(masterAlias, alias) {
-			ctCtx, ctCancel := context.WithTimeout(context.Background(), *MasterCheckTimeout)
-			defer ctCancel()
-			if err := agent.ChangeType(ctCtx, topodata.TabletType_SPARE); err != nil {
-				log.Errorf("could not change to spare: %v, error: %v", topoproto.TabletAliasString(tablet.Alias), err)
-			}
-			return
-		}
 	}
 }
 
