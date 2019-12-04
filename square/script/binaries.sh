@@ -5,7 +5,7 @@ set -euxo pipefail
 
 buildpack_root_dir=/data/app/kochiku-worker/build-tools/buildpack
 artifact_dir=/data/app/kochiku-worker/tmp/artifacts
-app="vitess-linux-build"
+app="vitess-build"
 
 function upload_artifacts {
   # shellcheck disable=SC2016
