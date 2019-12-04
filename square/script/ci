@@ -46,6 +46,7 @@ case "$TEST_RUNNER" in
     if [[ "$(check_buildpack)" != 0 ]]; then
       redownload_buildpack
     fi
+    checkout_newest_build_pack
     square/script/binaries.sh
     exit
     ;;
