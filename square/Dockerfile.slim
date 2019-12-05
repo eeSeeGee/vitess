@@ -11,6 +11,7 @@ COPY --from=builder /vt/bin/vtctld /vt/bin/
 COPY --from=builder /vt/bin/vtctlclient /vt/bin/
 COPY --from=builder /vt/bin/vtgate /vt/bin/
 COPY --from=builder /vt/bin/vttablet /vt/bin/
+COPY --from=builder /vt/bin/vttestserver /vt/bin/
 COPY --from=builder /vt/bin/vtworker /vt/bin/
 COPY --from=builder /vt/bin/zk /vt/bin/
 
