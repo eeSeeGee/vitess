@@ -25,6 +25,7 @@ USER vitess
 # Make directories and copy binaries over from the vitess build image
 RUN mkdir -p /vt/src/vitess.io/vitess/web/vtctld2 && mkdir -p /vt/vtdataroot/ && mkdir -p /vt/bin
 COPY --from=build /vt/src/vitess.io/vitess/config /vt/config
+COPY --from=build /vt/src/vitess.io/vitess/config /vt/src/vitess.io/vitess/config
 COPY --from=build /vt/src/vitess.io/vitess/web/vtctld /vt/src/vitess.io/web/
 COPY --from=build /vt/src/vitess.io/vitess/web/vtctld2/app /vt/src/vitess.io/web/vtctld2/
 COPY --from=build /vt/bin/automation_client /vt/bin/automation_server /vt/bin/demo /vt/bin/mysqlctl /vt/bin/mysqlctld /vt/bin/query_analyzer /vt/bin/topo2topo /vt/bin/vtaclcheck /vt/bin/vtbench /vt/bin/vtclient /vt/bin/vtcombo /vt/bin/vtcopymissingrows /vt/bin/vtctl /vt/bin/vtctlclient /vt/bin/vtctld /vt/bin/vtexplain /vt/bin/vtgate /vt/bin/vtgateclienttest /vt/bin/vtqueryserver /vt/bin/vtrepairtable /vt/bin/vttablet /vt/bin/vttestserver /vt/bin/
