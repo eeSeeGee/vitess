@@ -463,7 +463,9 @@ func (blw *BackfillLookupWorker) initShards(ctx context.Context) error {
 				return fmt.Errorf("cannot load VSchema for keyspace %v: %v", ks, err)
 			}
 			for table := range kschema.Tables {
-				if table == blw.destinationAutoIncrement.Sequence {
+				sequenceMatchesTable := sequenceMatchesTableName(blw.destinationAutoIncrement.Sequence, table, ks)
+
+				if sequenceMatchesTable {
 					shortCtx, cancel = context.WithTimeout(ctx, *remoteActionsTimeout)
 					shards, err := blw.wr.TopoServer().FindAllShardsInKeyspace(shortCtx, ks)
 					cancel()
@@ -485,6 +487,27 @@ func (blw *BackfillLookupWorker) initShards(ctx context.Context) error {
 		}
 	}
 	return nil
+}
+
+func parseSequence(inputSequence string) (keyspace, sequence string) {
+	elements := strings.Split(inputSequence, ".")
+	numOfElements := len(elements)
+
+	if numOfElements > 1 {
+		return elements[0], elements[1]
+	}
+
+	return "", inputSequence
+}
+
+func sequenceMatchesTableName(sequence, table, keyspace string) bool {
+	ks, seq := parseSequence(sequence)
+
+	if ks != "" {
+		return ks == keyspace && seq == table
+	}
+
+	return seq == table
 }
 
 /**
@@ -882,7 +905,7 @@ func (blw *BackfillLookupWorker) backfill(ctx context.Context) error {
 
 				if blw.destinationAutoIncrement != nil {
 					bindVars := map[string]*querypb.BindVariable{"n": sqltypes.ValueBindVariable(sqltypes.NewInt64(1))}
-					results, err := seqQueryService.Execute(ctx, target, fmt.Sprintf("select next :n values from %s", blw.destinationAutoIncrement.Sequence), bindVars, 0, nil)
+					results, err := seqQueryService.Execute(ctx, target, fmt.Sprintf("select next :n values from %s", stripKeyspaceFromSequence(blw.destinationAutoIncrement.Sequence)), bindVars, 0, nil)
 					if err != nil {
 						return nil, false, err
 					}
@@ -924,6 +947,12 @@ func (blw *BackfillLookupWorker) backfill(ctx context.Context) error {
 	}
 
 	return firstError
+}
+
+func stripKeyspaceFromSequence(seq string) string {
+	_, sequence := parseSequence(seq)
+
+	return sequence
 }
 
 func (blw *BackfillLookupWorker) getSchema(ctx context.Context, tablet *topodatapb.Tablet) (*tabletmanagerdatapb.SchemaDefinition, error) {
