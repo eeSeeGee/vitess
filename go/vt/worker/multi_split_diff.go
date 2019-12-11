@@ -75,7 +75,6 @@ type MultiSplitDiffWorker struct {
 	// populated during WorkerStateInit, read-only after that
 	keyspaceInfo      *topo.KeyspaceInfo
 	shardInfo         *topo.ShardInfo
-	sourceUID         uint32
 	destinationShards []*topo.ShardInfo
 
 	// populated during WorkerStateFindTargets, read-only after that
@@ -238,7 +237,6 @@ func (msdw *MultiSplitDiffWorker) init(ctx context.Context) error {
 		sourceShard := destinationShard.SourceShards[0]
 
 		msdw.includeTables = sourceShard.Tables
-		msdw.sourceUID = sourceShard.Uid
 		msdw.keyspace = sourceShard.Keyspace
 		msdw.shard = sourceShard.Shard
 	}
@@ -334,22 +332,14 @@ func (msdw *MultiSplitDiffWorker) findShardsInKeyspace(ctx context.Context, keys
 	}
 
 	var resultArray []*topo.ShardInfo
-	first := true
 
 	for _, shard := range shards {
-		shardInfo, uid, err := msdw.getShardInfo(ctx, keyspace, shard)
+		shardInfo, err := msdw.getShardInfo(ctx, keyspace, shard)
 		if err != nil {
 			return nil, err
 		}
 		// There might not be any source shards here
 		if shardInfo != nil {
-			if first {
-				msdw.sourceUID = uid
-				first = false
-			} else if msdw.sourceUID != uid {
-				return nil, vterrors.Errorf(vtrpc.Code_FAILED_PRECONDITION, "found a source ID that was different, aborting. %v vs %v", msdw.sourceUID, uid)
-			}
-
 			resultArray = append(resultArray, shardInfo)
 		}
 	}
@@ -358,22 +348,22 @@ func (msdw *MultiSplitDiffWorker) findShardsInKeyspace(ctx context.Context, keys
 }
 
 // getShardInfo returns the shard info and the vreplication uid IFF the shard is vreplicating from the source shard
-func (msdw *MultiSplitDiffWorker) getShardInfo(ctx context.Context, keyspace string, shard string) (*topo.ShardInfo, uint32, error) {
+func (msdw *MultiSplitDiffWorker) getShardInfo(ctx context.Context, keyspace string, shard string) (*topo.ShardInfo, error) {
 	shortCtx, cancel := context.WithTimeout(ctx, *remoteActionsTimeout)
 	si, err := msdw.wr.TopoServer().GetShard(shortCtx, keyspace, shard)
 	cancel()
 	if err != nil {
-		return nil, 0, vterrors.Wrap(err, "failed to get shard info from toposerver")
+		return nil, vterrors.Wrap(err, "failed to get shard info from toposerver")
 	}
 
 	for _, sourceShard := range si.SourceShards {
 		if len(sourceShard.Tables) == 0 && sourceShard.Keyspace == msdw.keyspace && sourceShard.Shard == msdw.shard {
 			// Prevents the same shard from showing up multiple times
-			return si, sourceShard.Uid, nil
+			return si, nil
 		}
 	}
 
-	return nil, 0, nil
+	return nil, nil
 }
 
 // findTargets phase:
@@ -414,6 +404,13 @@ func (msdw *MultiSplitDiffWorker) findTargets(ctx context.Context) error {
 	return nil
 }
 
+func getSourceShardUID(info *topo.ShardInfo) (uint32, error) {
+	if len(info.SourceShards) < 1 {
+		return 0, vterrors.Errorf(vtrpc.Code_NOT_FOUND, "No source shard in %s, %s", info.Keyspace(), info.ShardName())
+	}
+	return info.SourceShards[0].Uid, nil
+}
+
 // ask the master of the destination shard to pause filtered replication,
 // and return the source binlog positions
 // (add a cleanup task to restart filtered replication on master)
@@ -425,14 +422,18 @@ func (msdw *MultiSplitDiffWorker) stopVreplicationOnAll(ctx context.Context, tab
 
 		msdw.wr.Logger().Infof("stopping master binlog replication on %v", shardInfo.MasterAlias)
 		shortCtx, cancel := context.WithTimeout(ctx, *remoteActionsTimeout)
-		_, err := msdw.wr.TabletManagerClient().VReplicationExec(shortCtx, tablet, binlogplayer.StopVReplication(msdw.sourceUID, "for split diff"))
+		uid, err := getSourceShardUID(shardInfo)
+		if err != nil {
+			return nil, vterrors.Wrap(err, "error getting vreplication for destination shard")
+		}
+		_, err = msdw.wr.TabletManagerClient().VReplicationExec(shortCtx, tablet, binlogplayer.StopVReplication(uid, "for split diff"))
 		cancel()
 		if err != nil {
 			return nil, vterrors.Wrapf(err, "VReplicationExec(stop) for %v failed", shardInfo.MasterAlias)
 		}
-		wrangler.RecordVReplicationAction(msdw.cleaner, tablet, binlogplayer.StartVReplication(msdw.sourceUID))
+		wrangler.RecordVReplicationAction(msdw.cleaner, tablet, binlogplayer.StartVReplication(uid))
 		shortCtx, cancel = context.WithTimeout(ctx, *remoteActionsTimeout)
-		p3qr, err := msdw.wr.TabletManagerClient().VReplicationExec(shortCtx, tablet, binlogplayer.ReadVReplicationPos(msdw.sourceUID))
+		p3qr, err := msdw.wr.TabletManagerClient().VReplicationExec(shortCtx, tablet, binlogplayer.ReadVReplicationPos(uid))
 		cancel()
 		if err != nil {
 			return nil, vterrors.Wrapf(err, "VReplicationExec(stop) for %v failed", msdw.shardInfo.MasterAlias)
@@ -507,14 +508,18 @@ func (msdw *MultiSplitDiffWorker) stopReplicationOnSourceTabletAt(ctx context.Co
 func (msdw *MultiSplitDiffWorker) stopVreplicationAt(ctx context.Context, shardInfo *topo.ShardInfo, sourcePosition string, masterInfo *topo.TabletInfo) (string, error) {
 	msdw.wr.Logger().Infof("Restarting master %v until it catches up to %v", shardInfo.MasterAlias, sourcePosition)
 	shortCtx, cancel := context.WithTimeout(ctx, *remoteActionsTimeout)
-	_, err := msdw.wr.TabletManagerClient().VReplicationExec(shortCtx, masterInfo.Tablet, binlogplayer.StartVReplicationUntil(msdw.sourceUID, sourcePosition))
+	uid, err := getSourceShardUID(shardInfo)
+	if err != nil {
+		return "", vterrors.Wrap(err, "error getting vreplication for destination shard")
+	}
+	_, err = msdw.wr.TabletManagerClient().VReplicationExec(shortCtx, masterInfo.Tablet, binlogplayer.StartVReplicationUntil(uid, sourcePosition))
 	cancel()
 	if err != nil {
 		return "", vterrors.Wrapf(err, "VReplication(start until) for %v until %v failed", shardInfo.MasterAlias, sourcePosition)
 	}
 
 	shortCtx, cancel = context.WithTimeout(ctx, *remoteActionsTimeout)
-	err = msdw.wr.TabletManagerClient().VReplicationWaitForPos(shortCtx, masterInfo.Tablet, int(msdw.sourceUID), sourcePosition)
+	err = msdw.wr.TabletManagerClient().VReplicationWaitForPos(shortCtx, masterInfo.Tablet, int(uid), sourcePosition)
 	cancel()
 	if err != nil {
 		return "", vterrors.Wrapf(err, "VReplicationWaitForPos for %v until %v failed", shardInfo.MasterAlias, sourcePosition)
@@ -569,7 +574,11 @@ func (msdw *MultiSplitDiffWorker) stopReplicationAt(ctx context.Context, destina
 func (msdw *MultiSplitDiffWorker) startVreplication(ctx context.Context, shardInfo *topo.ShardInfo, masterInfo *topo.TabletInfo) error {
 	msdw.wr.Logger().Infof("restarting filtered replication on master %v", shardInfo.MasterAlias)
 	shortCtx, cancel := context.WithTimeout(ctx, *remoteActionsTimeout)
-	_, err := msdw.wr.TabletManagerClient().VReplicationExec(shortCtx, masterInfo.Tablet, binlogplayer.StartVReplication(msdw.sourceUID))
+	uid, err := getSourceShardUID(shardInfo)
+	if err != nil {
+		return vterrors.Wrap(err, "error getting vreplication for destination shard")
+	}
+	_, err = msdw.wr.TabletManagerClient().VReplicationExec(shortCtx, masterInfo.Tablet, binlogplayer.StartVReplication(uid))
 	if err != nil {
 		return vterrors.Wrapf(err, "VReplicationExec(start) failed for %v", shardInfo.MasterAlias)
 	}
