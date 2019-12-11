@@ -26,6 +26,8 @@ REPO=square-vitess
 # This is done so we can continue to use the normal vitess Dockerfile in the above build.
 docker build -t "$REPO:$GIT_COMMIT" --build-arg GIT_COMMIT="${GIT_COMMIT}" --file square/Dockerfile .
 
+docker build -t "$REPO:$GIT_COMMIT-testing" --build-arg GIT_COMMIT="${GIT_COMMIT}" --file square/Dockerfile.testing .
+
 if [[ -z ${KOCHIKU_ENV+x} ]]; then
     echo "local mode. not pushing docker files"
 else
@@ -36,4 +38,5 @@ else
     rm -rf ${CASH_CI_DIR}
     git clone ssh://git@git.sqcorp.co/cash/cash-ci.git ${CASH_CI_DIR}
     ${CASH_CI_DIR}/cash-docker-push -r ${REPO} -t "${GIT_COMMIT}" -p
+    ${CASH_CI_DIR}/cash-docker-push -r ${REPO} -t "${GIT_COMMIT}-testing" -p
 fi
