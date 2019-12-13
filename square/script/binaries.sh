@@ -3,18 +3,7 @@
 # If run inside of Kochiku, will also upload said binaries so that downstream builds can use them
 set -euxo pipefail
 
-buildpack_root_dir=/data/app/kochiku-worker/build-tools/buildpack
 artifact_dir=/data/app/kochiku-worker/tmp/artifacts
-app="vitess-build"
-
-function upload_artifacts {
-  # shellcheck disable=SC2016
-  logging_args='$stderr, $stderr'
-  gem install aws-sdk-s3
-  ruby -I "${buildpack_root_dir}/lib" \
-    -r build_and_upload_deployable \
-    -e "BuildAndUploadDeployable.new(%w[$app el6 --upload-destination partial-artifact], RealOperations.new, $logging_args).sign_and_upload_deployable_artifacts(%q($app), %q(el6), %q($artifact_dir))"
-}
 
 if [[ -z ${KOCHIKU_ENV+x} ]]; then
   echo "running in local mode"
@@ -47,5 +36,4 @@ if [[ -z ${KOCHIKU_ENV+x} ]]; then
   docker cp "$(docker container ls -alq)":/vt/src/vitess.io/vitess/vitess-osx-build.tar.gz .
 else
   docker cp "$(docker container ls -alq)":/vt/src/vitess.io/vitess/vitess-osx-build.tar.gz $artifact_dir/vitess-build/vitess-osx-build-"${GIT_COMMIT}".tar.gz
-  upload_artifacts
 fi

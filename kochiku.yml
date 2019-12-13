@@ -60,6 +60,8 @@ targets:
     - run-tests4
 #    - run-tests3
 - type: binaries
+  app_name: vitess-build
+  partial_artifact: true
   requires:
     - build_image
     - run-tests0
