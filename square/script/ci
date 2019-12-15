@@ -30,6 +30,10 @@ checkout_newest_build_pack() {
 }
 
 case "$TEST_RUNNER" in
+  build_bootstrap_image)
+    square/script/build-bootstrap-image.sh
+    exit
+    ;;
   build_image)
     square/script/build-image.sh
     exit

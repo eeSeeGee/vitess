@@ -6,7 +6,14 @@ ruby:
   - 2.6
 
 targets:
+- type: build_bootstrap_image
+  write_to_cache:
+    - docker-cache-vitess-bootstrap/
 - type: build_image
+  requires:
+    - build_bootstrap_image
+  read_from_cache:
+    - docker-cache-vitess-bootstrap/
   write_to_cache:
     - docker-cache/
 - type: run-tests0
@@ -41,12 +48,14 @@ targets:
 #    - docker-cache/
 - type: cloud_vitess
   requires:
-    - build_image
+    - build_bootstrap_image
     - run-tests0
     - run-tests1
     - run-tests2
     - run-tests4
 #    - run-tests3
+  read_from_cache:
+    - docker-cache-vitess-bootstrap/
 - type: jdbc
   requires:
     - build_image

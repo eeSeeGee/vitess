@@ -7,6 +7,11 @@ set -ex
 export REPO=vitess
 export TAG=${GIT_COMMIT}
 
+source ./square/script/bootstrap-image-vars.sh
+
+## Load the docker image file
+loadBootstrapImages
+
 make docker_base
 
 docker build -t $REPO:$TAG -f square/Dockerfile.slim .
