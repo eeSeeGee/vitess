@@ -422,6 +422,7 @@ func (fdiw *FindDuplicateIdsWorker) findDuplicateIds(ctx context.Context) error 
 	// mu protects the context for cancelation, and firstError
 	mu := sync.Mutex{}
 	var firstError error
+	foundDupes := 0
 
 	ctx, cancelCopy := context.WithCancel(ctx)
 	defer cancelCopy()
@@ -511,24 +512,28 @@ func (fdiw *FindDuplicateIdsWorker) findDuplicateIds(ctx context.Context) error 
 				}
 			}
 
-			countDupes := 0
+			localFoundDupes := 0
 			for id, shards := range idsGroupedByShard {
 				if len(shards) > 1 {
-					countDupes++
+					localFoundDupes++
 					fdiw.wr.Logger().Errorf("Found duplicate id %v in shards %v", id, strings.Join(shards, ", "))
 				}
 			}
-			if countDupes == 0 {
-				fdiw.wr.Logger().Infof("No duplicate ids! Yay!")
-			} else {
-				fdiw.wr.Logger().Errorf("Found %v duplicate ids", countDupes)
-			}
+			mu.Lock()
+			foundDupes += localFoundDupes
+			mu.Unlock()
 		}(c)
 	}
 	sourceWaitGroup.Wait()
 
 	if firstError != nil {
 		return firstError
+	}
+
+	if foundDupes == 0 {
+		fdiw.wr.Logger().Infof("No duplicate ids! Yay!")
+	} else {
+		fdiw.wr.Logger().Errorf("Found %v duplicate ids", foundDupes)
 	}
 
 	return firstError

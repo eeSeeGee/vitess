@@ -49,11 +49,6 @@ targets:
 - type: cloud_vitess
   requires:
     - build_bootstrap_image
-    - run-tests0
-    - run-tests1
-    - run-tests2
-    - run-tests4
-#    - run-tests3
   read_from_cache:
     - docker-cache-vitess-bootstrap/
 - type: jdbc
