@@ -7,11 +7,7 @@ COPY --from=builder /vt/src/vitess.io/vitess/web/vtctld /vt/src/vitess.io/vitess
 COPY --from=builder /vt/src/vitess.io/vitess/web/vtctld2/app /vt/src/vitess.io/vitess/web/vtctld2/app
 COPY --from=builder /vt/src/vitess.io/vitess/config /vt/config
 COPY --from=builder /vt/bin/mysqlctld /vt/bin/
-COPY --from=builder /vt/bin/vtctld /vt/bin/
-COPY --from=builder /vt/bin/vtctlclient /vt/bin/
-COPY --from=builder /vt/bin/vtgate /vt/bin/
-COPY --from=builder /vt/bin/vttablet /vt/bin/
-COPY --from=builder /vt/bin/vtworker /vt/bin/
+COPY --from=builder /vt/bin/vt* /vt/bin/
 COPY --from=builder /vt/bin/zk /vt/bin/
 
 FROM debian:stretch-slim
