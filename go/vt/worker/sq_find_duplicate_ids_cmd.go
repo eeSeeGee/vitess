@@ -94,9 +94,9 @@ func commandFindDuplicateIds(wi *Instance, wr *wrangler.Wrangler, subFlags *flag
 	if err := subFlags.Parse(args); err != nil {
 		return nil, err
 	}
-	if subFlags.NArg() != 1 {
+	if subFlags.NArg() != 2 {
 		subFlags.Usage()
-		return nil, fmt.Errorf("command FindDuplicateIds requires <keyspace/table>")
+		return nil, fmt.Errorf("command FindDuplicateIds requires <keyspace> <table>")
 	}
 
 	keyspace := subFlags.Arg(0)
@@ -240,6 +240,6 @@ func interactiveFindDuplicateIds(ctx context.Context, wi *Instance, wr *wrangler
 func init() {
 	AddCommand("Square", Command{"FindDuplicateIds",
 		commandFindDuplicateIds, interactiveFindDuplicateIds,
-		"<keyspace> <table>",
+		"<keyspace>/<table>",
 		"Finds duplicate IDs across all shards"})
 }
