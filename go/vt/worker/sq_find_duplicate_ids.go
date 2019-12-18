@@ -541,7 +541,7 @@ func (fdiw *FindDuplicateIdsWorker) findDuplicateIds(ctx context.Context) error 
 		return firstError
 	}
 
-	fdiw.wr.Logger().Errorf("total duplicate ids: %v", foundDupes)
+	fdiw.wr.Logger().Errorf("total duplicate ids table=%v: %v", fdiw.table, foundDupes)
 
 	return firstError
 }
