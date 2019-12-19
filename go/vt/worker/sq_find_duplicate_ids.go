@@ -48,16 +48,17 @@ type FindDuplicateIdsWorker struct {
 	cell     string
 	keyspace string
 
-	chunkCount             int
-	minRowsPerChunk        int
-	sourceReaderCount      int
-	tabletType             topodatapb.TabletType
-	cleaner                *wrangler.Cleaner
-	tabletTracker          *TabletTracker
+	chunkCount        int
+	minRowsPerChunk   int
+	sourceReaderCount int
+	tabletType        topodatapb.TabletType
+	cleaner           *wrangler.Cleaner
+	tabletTracker     *TabletTracker
 
 	// populated during WorkerStateInit, read-only after that
 	table        string
 	column       string
+	token        string
 	keyspaceInfo *topo.KeyspaceInfo
 	keyRange     *topodatapb.KeyRange
 	shards       []*topo.ShardInfo
@@ -79,7 +80,7 @@ type FindDuplicateIdsWorker struct {
 	status *backfillStatus
 }
 
-func newFindDuplicateIdsWorker(wr *wrangler.Wrangler, cell, keyspace string, table string, tabletType topodatapb.TabletType, sourceRange string, chunkCount, minRowsPerChunk, readerCount int) (Worker, error) {
+func newFindDuplicateIdsWorker(wr *wrangler.Wrangler, cell, keyspace, table, token string, tabletType topodatapb.TabletType, sourceRange string, chunkCount, minRowsPerChunk, readerCount int) (Worker, error) {
 	// Verify user defined flags.
 	if chunkCount <= 0 {
 		return nil, fmt.Errorf("chunk_count must be > 0: %v", chunkCount)
@@ -103,10 +104,11 @@ func newFindDuplicateIdsWorker(wr *wrangler.Wrangler, cell, keyspace string, tab
 	}
 
 	scw := &FindDuplicateIdsWorker{
-		StatusWorker:           NewStatusWorker(),
-		wr:                     wr,
+		StatusWorker:      NewStatusWorker(),
+		wr:                wr,
 		cell:              cell,
 		table:             table,
+		token:             token,
 		keyspace:          keyspace,
 		tabletType:        tabletType,
 		chunkCount:        chunkCount,
@@ -414,7 +416,10 @@ func (fdiw *FindDuplicateIdsWorker) findDuplicateIds(ctx context.Context) error 
 		return fmt.Errorf("can only handle a single PK column of type long currently")
 	}
 	sourceTableDefinition = proto.Clone(sourceTableDefinition).(*tabletmanagerdatapb.TableDefinition)
-	sourceTableDefinition.Columns = append(sourceTableDefinition.PrimaryKeyColumns, "customer_id", "token")
+	sourceTableDefinition.Columns = append(sourceTableDefinition.PrimaryKeyColumns, "customer_id")
+	if fdiw.token != "" {
+		sourceTableDefinition.Columns = append(sourceTableDefinition.Columns, fdiw.token)
+	}
 
 	status.initialize(sourceTableDefinition)
 
@@ -509,20 +514,26 @@ func (fdiw *FindDuplicateIdsWorker) findDuplicateIds(ctx context.Context) error 
 						return
 					}
 					customerId, err := sqltypes.ToUint64(row[1])
-					token := row[2].String()
 					shardsGroupedById[id] = append(shardsGroupedById[id], shard)
 					customerIdsGroupedById[id] = append(customerIdsGroupedById[id], customerId)
-					tokensGroupedById[id] = append(tokensGroupedById[id], token)
+
+					if fdiw.token != "" {
+						token := row[2].String()
+						tokensGroupedById[id] = append(tokensGroupedById[id], token)
+					}
 				}
 			}
 
 			localFoundDupes := 0
 			for id, shards := range shardsGroupedById {
 				tokens := tokensGroupedById[id]
-				if len(shards) > 1 && countUnique(tokens) > 1 {
+				if len(shards) > 1 {
+					if fdiw.token != "" && countUnique(tokens) <= 1 {
+						continue
+					}
 					localFoundDupes++
 					customerIds := customerIdsGroupedById[id]
-					fdiw.wr.Logger().Errorf("duplicate id found: " +
+					fdiw.wr.Logger().Errorf("duplicate id found: "+
 						"table=%v, id=%v, shards=%v, customer_ids=%v, tokens=%v",
 						fdiw.table, id, shards, customerIds, tokens)
 				}

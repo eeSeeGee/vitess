@@ -61,6 +61,8 @@ const findDuplicateIdsHTML2 = `
   <p>Table to process: {{.Keyspace}}.{{.Table}}</p>
   <h1>Find Duplicate IDs </h1>
     <form action="/Square/FindDuplicateIds" method="post">
+      <LABEL for="token">Extra column to remove dupes by (often a "token" column): </LABEL>
+        <INPUT type="text" id="token" name="token" value="{{.Token}}"></BR>
       <LABEL for="tabletType">Tablet Type:</LABEL>
 			<SELECT id="tabletType" name="tabletType">
 			  <OPTION value="MASTER">MASTER</OPTION>
@@ -87,6 +89,7 @@ var findDuplicateIdsTemplate2 = mustParseTemplate("findDuplicateIds2", findDupli
 
 func commandFindDuplicateIds(wi *Instance, wr *wrangler.Wrangler, subFlags *flag.FlagSet, args []string) (Worker, error) {
 	tabletTypeStr := subFlags.String("tablet_type", "RDONLY", "type of tablet used")
+	token := subFlags.String("token", "token", "extra column to remove dupes by (often a \"token\" column)")
 	chunkCount := subFlags.Int("chunk_count", defaultChunkCount, "number of chunks per table")
 	minRowsPerChunk := subFlags.Int("min_rows_per_chunk", defaultMinRowsPerChunk, "minimum number of rows per chunk (may reduce --chunk_count)")
 	sourceReaderCount := subFlags.Int("source_reader_count", defaultSourceReaderCount, "number of concurrent streaming queries to use on the source")
@@ -114,7 +117,7 @@ func commandFindDuplicateIds(wi *Instance, wr *wrangler.Wrangler, subFlags *flag
 		return nil, fmt.Errorf("cannot parse tabletType: %s", *tabletTypeStr)
 	}
 
-	worker, err := newFindDuplicateIdsWorker(wr, wi.cell, keyspace, table, topodatapb.TabletType(tabletType), *sourceRange, *chunkCount, *minRowsPerChunk, *sourceReaderCount)
+	worker, err := newFindDuplicateIdsWorker(wr, wi.cell, keyspace, table, *token, topodatapb.TabletType(tabletType), *sourceRange, *chunkCount, *minRowsPerChunk, *sourceReaderCount)
 	if err != nil {
 		return nil, fmt.Errorf("cannot create worker: %v", err)
 	}
@@ -172,6 +175,7 @@ func interactiveFindDuplicateIds(ctx context.Context, wi *Instance, wr *wrangler
 
 	keyspace := r.FormValue("keyspace")
 	table := r.FormValue("table")
+	token := r.FormValue("token")
 	if keyspace == "" || table == "" {
 		result := make(map[string]interface{})
 		choices, err := allTables(ctx, wr)
@@ -189,6 +193,7 @@ func interactiveFindDuplicateIds(ctx context.Context, wi *Instance, wr *wrangler
 		result := make(map[string]interface{})
 		result["Keyspace"] = keyspace
 		result["Table"] = table
+		result["Token"] = "token"
 		result["DefaultOnline"] = defaultOnline
 		result["DefaultOffline"] = defaultOffline
 		result["DefaultChunkCount"] = fmt.Sprintf("%v", defaultChunkCount)
@@ -230,7 +235,7 @@ func interactiveFindDuplicateIds(ctx context.Context, wi *Instance, wr *wrangler
 	}
 
 	// start the job
-	wrk, err := newFindDuplicateIdsWorker(wr, wi.cell, keyspace, table, topodatapb.TabletType(tabletType), sourceRange, int(chunkCount), int(minRowsPerChunk), int(sourceReaderCount))
+	wrk, err := newFindDuplicateIdsWorker(wr, wi.cell, keyspace, table, token, topodatapb.TabletType(tabletType), sourceRange, int(chunkCount), int(minRowsPerChunk), int(sourceReaderCount))
 	if err != nil {
 		return nil, nil, nil, fmt.Errorf("cannot create worker: %v", err)
 	}
@@ -240,6 +245,6 @@ func interactiveFindDuplicateIds(ctx context.Context, wi *Instance, wr *wrangler
 func init() {
 	AddCommand("Square", Command{"FindDuplicateIds",
 		commandFindDuplicateIds, interactiveFindDuplicateIds,
-		"<keyspace>/<table>",
+		"<keyspace> <table>",
 		"Finds duplicate IDs across all shards"})
 }
