@@ -56,12 +56,13 @@ type FindDuplicateIdsWorker struct {
 	tabletTracker     *TabletTracker
 
 	// populated during WorkerStateInit, read-only after that
-	table        string
-	column       string
-	token        string
-	keyspaceInfo *topo.KeyspaceInfo
-	keyRange     *topodatapb.KeyRange
-	shards       []*topo.ShardInfo
+	table          string
+	column         string
+	shardingColumn string
+	token          string
+	keyspaceInfo   *topo.KeyspaceInfo
+	keyRange       *topodatapb.KeyRange
+	shards         []*topo.ShardInfo
 	// healthCheck is used for the destination shards to a) find out the current
 	// MASTER tablet, b) get the list of healthy RDONLY tablets and c) track the
 	// replication lag of all REPLICA tablets.
@@ -80,7 +81,7 @@ type FindDuplicateIdsWorker struct {
 	status *backfillStatus
 }
 
-func newFindDuplicateIdsWorker(wr *wrangler.Wrangler, cell, keyspace, table, token string, tabletType topodatapb.TabletType, sourceRange string, chunkCount, minRowsPerChunk, readerCount int) (Worker, error) {
+func newFindDuplicateIdsWorker(wr *wrangler.Wrangler, cell, keyspace, table, shardingColumn, token string, tabletType topodatapb.TabletType, sourceRange string, chunkCount, minRowsPerChunk, readerCount int) (Worker, error) {
 	// Verify user defined flags.
 	if chunkCount <= 0 {
 		return nil, fmt.Errorf("chunk_count must be > 0: %v", chunkCount)
@@ -416,7 +417,7 @@ func (fdiw *FindDuplicateIdsWorker) findDuplicateIds(ctx context.Context) error 
 		return fmt.Errorf("can only handle a single PK column of type long currently")
 	}
 	sourceTableDefinition = proto.Clone(sourceTableDefinition).(*tabletmanagerdatapb.TableDefinition)
-	sourceTableDefinition.Columns = append(sourceTableDefinition.PrimaryKeyColumns, "customer_id")
+	sourceTableDefinition.Columns = append(sourceTableDefinition.PrimaryKeyColumns, fdiw.shardingColumn)
 	if fdiw.token != "" {
 		sourceTableDefinition.Columns = append(sourceTableDefinition.Columns, fdiw.token)
 	}
