@@ -18,7 +18,7 @@ docker/bootstrap/build.sh common
 docker/bootstrap/build.sh mysql57
 
 if [[ -z ${KOCHIKU_ENV+x} ]]; then
-    echo "local mode. not pushing docker files"
+    echo "local mode. not saving docker files"
 else
     # Save the docker image so it can be loaded by later kochiku steps
     mkdir -p $VITESS_BOOTSTRAP_DOCKER_IMAGE_DIR
