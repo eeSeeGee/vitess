@@ -110,6 +110,7 @@ func newFindDuplicateIdsWorker(wr *wrangler.Wrangler, cell, keyspace, table, sha
 		cell:              cell,
 		table:             table,
 		token:             token,
+		shardingColumn:    shardingColumn,
 		keyspace:          keyspace,
 		tabletType:        tabletType,
 		chunkCount:        chunkCount,
