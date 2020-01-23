@@ -138,7 +138,7 @@ func insertRowsInShards(ctx context.Context, topoServer *topo.Server, tableName 
 }
 
 func getDestinationTablet(ctx context.Context, topoServer *topo.Server, value sqltypes.Value, targetShards []*topodata.ShardReference, targetKeyspace *topo.KeyspaceInfo, vschema *vindexes.KeyspaceSchema) (*topo.TabletInfo, error) {
-	destinations, err := vschema.Vindexes[*targetVindexName].Map(nil, []sqltypes.Value{value})
+	destinations, err := vschema.Vindexes[*targetVindexName].(vindexes.SingleColumn).Map(nil, []sqltypes.Value{value})
 	logAndExitIfError(err)
 
 	var destTablet *topo.TabletInfo
@@ -178,7 +178,8 @@ func selectRows(ctx context.Context, topoServer *topo.Server, tableName string, 
 
 	numberOfShards := len(shardReferences)
 	if numberOfShards != 1 {
-		log.Fatalln("Source keyspace must be unsharded. Keyspace %s has %d shards", sourceKeyspace.KeyspaceName(), numberOfShards)
+		message := fmt.Sprintf("Source keyspace must be unsharded. Keyspace %s has %d shards", sourceKeyspace.KeyspaceName(), numberOfShards)
+		log.Fatalln(message)
 	}
 
 	sourceTarget, err := parseTarget(fmt.Sprintf("%s/%s", *sourceKeysapceArg, shardReferences[0].Name))

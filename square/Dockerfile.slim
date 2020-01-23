@@ -3,11 +3,28 @@ FROM vitess/base AS builder
 FROM debian:stretch-slim AS staging
 
 RUN mkdir -p /vt/vtdataroot/ && mkdir -p /vt/bin && mkdir -p /vt/src/vitess.io/vitess/web/vtctld2
-COPY --from=builder /vt/src/vitess.io/vitess/web/vtctld /vt/src/vitess.io/vitess/web/vtctld
 COPY --from=builder /vt/src/vitess.io/vitess/web/vtctld2/app /vt/src/vitess.io/vitess/web/vtctld2/app
 COPY --from=builder /vt/src/vitess.io/vitess/config /vt/config
 COPY --from=builder /vt/bin/mysqlctld /vt/bin/
-COPY --from=builder /vt/bin/vt* /vt/bin/
+COPY --from=builder /vt/bin/vtaclcheck /vt/bin/
+COPY --from=builder /vt/bin/vtbackup /vt/bin/
+COPY --from=builder /vt/bin/vtbench /vt/bin/
+COPY --from=builder /vt/bin/vtcombo /vt/bin/
+COPY --from=builder /vt/bin/vtclient /vt/bin/
+COPY --from=builder /vt/bin/vtctlclient /vt/bin/
+COPY --from=builder /vt/bin/vtcopymissingrows /vt/bin/
+COPY --from=builder /vt/bin/vtcopytable /vt/bin/
+COPY --from=builder /vt/bin/vtctl /vt/bin/
+COPY --from=builder /vt/bin/vtctld /vt/bin/
+COPY --from=builder /vt/bin/vtexplain /vt/bin/
+COPY --from=builder /vt/bin/vtgate /vt/bin/
+COPY --from=builder /vt/bin/vtgateclienttest /vt/bin/
+COPY --from=builder /vt/bin/vtrepairtable /vt/bin/
+COPY --from=builder /vt/bin/vttablet /vt/bin/
+COPY --from=builder /vt/bin/vttestserver /vt/bin/
+COPY --from=builder /vt/bin/vttlstest /vt/bin/
+COPY --from=builder /vt/bin/vtworker /vt/bin/
+COPY --from=builder /vt/bin/vtworkerclient /vt/bin/
 COPY --from=builder /vt/bin/zk /vt/bin/
 
 FROM debian:stretch-slim

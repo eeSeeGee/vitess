@@ -38,6 +38,5 @@ USER vitess
 RUN mkdir -p /vt/src/vitess.io/vitess/web/vtctld2 && mkdir -p /vt/vtdataroot/ && mkdir -p /vt/bin
 COPY --from=build /vt/src/vitess.io/vitess/config /vt/config
 COPY --from=build /vt/src/vitess.io/vitess/config /vt/src/vitess.io/vitess/config
-COPY --from=build /vt/src/vitess.io/vitess/web/vtctld /vt/src/vitess.io/web/
 COPY --from=build /vt/src/vitess.io/vitess/web/vtctld2/app /vt/src/vitess.io/web/vtctld2/
 COPY --from=build /vt/bin/mysqlctl /vt/bin/mysqlctld /vt/bin/vtcombo /vt/bin/vttestserver /vt/bin/

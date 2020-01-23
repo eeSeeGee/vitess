@@ -202,7 +202,7 @@ func main() {
 		for _, row := range result.Rows {
 			// Check that the row actually belongs to the destination shard
 			primaryVindexVal := row[1]
-			destination, err := primaryVindex.Vindex.Map(nil, []sqltypes.Value{primaryVindexVal})
+			destination, err := primaryVindex.Vindex.(vindexes.SingleColumn).Map(nil, []sqltypes.Value{primaryVindexVal})
 			if err != nil {
 				return err
 			}
