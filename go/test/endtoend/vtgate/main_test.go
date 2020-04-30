@@ -68,7 +68,12 @@ create table t2_id4_idx(
 	primary key(id),
 	key idx_id4(id4)
 ) Engine=InnoDB;
-`
+
+create table t5_null_vindex(
+	id bigint not null,
+	idx varchar(50),
+	primary key(id)
+) Engine=InnoDB;`
 
 	VSchema = `
 	{
@@ -76,6 +81,9 @@ create table t2_id4_idx(
   "vindexes": {
     "hash": {
       "type": "hash"
+    },
+    "xxhash": {
+      "type": "xxhash"
     },
     "t1_id2_vdx": {
       "type": "consistent_lookup_unique",
@@ -135,6 +143,14 @@ create table t2_id4_idx(
         {
           "column": "id4",
           "name": "hash"
+        }
+      ]
+    },
+	"t5_null_vindex": {
+      "column_vindexes": [
+        {
+          "column": "idx",
+          "name": "xxhash"
         }
       ]
     },
