@@ -34,7 +34,7 @@ case "$TEST_RUNNER" in
     square/script/build-bootstrap-image.sh
     exit
     ;;
-  build_image)
+  deployable_image)
     square/script/build-image.sh
     exit
     ;;
