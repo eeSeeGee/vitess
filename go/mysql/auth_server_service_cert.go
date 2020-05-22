@@ -1,6 +1,5 @@
 /*
-TODO: what copyright?
-Copyright 2020 Square.
+Copyright 2020 The Vitess Authors.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -91,7 +90,7 @@ func InitAuthServerServiceCert() {
 // RegisterAuthServerServiceCertFromParams creates and registers a new
 // AuthServerServiceCertFromParams, loaded for a JSON file. It
 // log.Exits out in case of error.
-func RegisterAuthServerServiceCertFromParams(file, reloadInterval time.Duration) {
+func RegisterAuthServerServiceCertFromParams(file string, reloadInterval time.Duration) {
 	authServerServiceCert := NewAuthServerServiceCert(file, reloadInterval)
 	if len(authServerServiceCert.entries) <= 0 {
 		log.Exitf("Failed to populate entries from file: %v", file)
@@ -100,7 +99,7 @@ func RegisterAuthServerServiceCertFromParams(file, reloadInterval time.Duration)
 }
 
 // NewAuthServerServiceCert returns a new empty AuthServerServiceCert.
-func NewAuthServerServiceCert(file, reloadInterval time.Duration) *AuthServerServiceCert {
+func NewAuthServerServiceCert(file string, reloadInterval time.Duration) *AuthServerServiceCert {
 	a := &AuthServerServiceCert{
 		file:           file,
 		reloadInterval: reloadInterval,
@@ -112,26 +111,22 @@ func NewAuthServerServiceCert(file, reloadInterval time.Duration) *AuthServerSer
 	return a
 }
 
-func (a *AuthServerServiceCert) reload() {
-	jsonBytes := []byte(a.jsonConfig)
-	if a.file != "" {
-		data, err := ioutil.ReadFile(a.file)
-		if err != nil {
-			log.Errorf("Failed to read mysql_auth_server_service_cert_user_file file: %v", err)
-			return
-		}
-		jsonBytes = data
+func (assc *AuthServerServiceCert) reload() {
+	data, err := ioutil.ReadFile(assc.file)
+	if err != nil {
+		log.Errorf("Failed to read mysql_auth_server_service_cert_user_file file: %v", err)
+		return
 	}
 
 	entries := make(map[string]*AuthServerServiceCertEntry)
-	if err := parseConfig(jsonBytes, &entries); err != nil {
+	if err := assc.parseConfig(data, &entries); err != nil {
 		log.Errorf("Error parsing auth server config: %v", err)
 		return
 	}
 
-	a.mu.Lock()
-	a.entries = entries
-	a.mu.Unlock()
+	assc.mu.Lock()
+	assc.entries = entries
+	assc.mu.Unlock()
 }
 
 func (a *AuthServerServiceCert) installSignalHandlers() {
@@ -167,16 +162,16 @@ func (a *AuthServerServiceCert) close() {
 	}
 }
 
-func parseConfig(jsonBytes []byte, config *map[string]*AuthServerServiceCertEntry) error {
+func (assc *AuthServerServiceCert) parseConfig(jsonBytes []byte, config *map[string]*AuthServerServiceCertEntry) error {
 	decoder := json.NewDecoder(bytes.NewReader(jsonBytes))
 	decoder.DisallowUnknownFields()
 	if err := decoder.Decode(config); err != nil {
 		return err
 	}
-	return validateConfig(*config)
+	return assc.validateConfig(*config)
 }
 
-func validateConfig(config map[string]*AuthServerServiceCertEntry) error {
+func (assc *AuthServerServiceCert) validateConfig(config map[string]*AuthServerServiceCertEntry) error {
 	for _, entry := range config {
 		if len(entry.Groups) <= 0 {
 			return vterrors.Errorf(vtrpc.Code_INVALID_ARGUMENT, "empty Groups found (at least one group required)")
@@ -186,22 +181,22 @@ func validateConfig(config map[string]*AuthServerServiceCertEntry) error {
 }
 
 // AuthMethod is part of the AuthServer interface.
-func (a *AuthServerStatic) AuthMethod(user string) (string, error) {
-	return a.method, nil
+func (ascc *AuthServerServiceCert) AuthMethod(user string) (string, error) {
+	return ascc.method, nil
 }
 
 // Salt is part of the AuthServer interface.
-func (a *AuthServerStatic) Salt() ([]byte, error) {
+func (ascc *AuthServerServiceCert) Salt() ([]byte, error) {
 	return NewSalt()
 }
 
 // ValidateHash is unimplemented.
-func (ascc *AuthServerClientCert) ValidateHash(salt []byte, user string, authResponse []byte, remoteAddr net.Addr) (Getter, error) {
+func (assc *AuthServerServiceCert) ValidateHash(salt []byte, user string, authResponse []byte, remoteAddr net.Addr) (Getter, error) {
 	panic("unimplemented")
 }
 
 // Negotiate is part of the AuthServer interface.
-func (ascc *AuthServerClientCert) Negotiate(c *Conn, user string, remoteAddr net.Addr) (Getter, error) {
+func (assc *AuthServerServiceCert) Negotiate(c *Conn, user string, remoteAddr net.Addr) (Getter, error) {
 	// This code depends on the fact that golang's tls server enforces client cert verification.
 	// Note that the -mysql_server_ssl_ca flag must be set in order for the vtgate to accept client certs.
 	// If not set, the vtgate will effectively deny all incoming mysql connections, since they will all lack certificates.
@@ -217,17 +212,16 @@ func (ascc *AuthServerClientCert) Negotiate(c *Conn, user string, remoteAddr net
 
 	commonName := certs[0].Subject.CommonName
 
-	// TODO: verify how to derive user name from cert
 	if user != commonName {
 		return &ServiceCertUserData{}, fmt.Errorf("MySQL connection username '%v' does not match client cert common name '%v'", user, commonName)
 	}
 
-	a.mu.Lock()
-	entries, ok := a.entries[user]
-	a.mu.Unlock()
+	assc.mu.Lock()
+	entry, ok := assc.entries[user]
+	assc.mu.Unlock()
 
 	if !ok {
-		return &ServiceCertUserData{}, NewSQLError(ERAccessDeniedError, SSAccessDeniedError, "Access denied for user '%v'", user)
+		return &ServiceCertUserData{}, NewSQLError(ERAccessDeniedError, SSAccessDeniedError, "Access denied for user '%v' from address '%v'", user, remoteAddr.String())
 	}
 
 	return &ServiceCertUserData{
